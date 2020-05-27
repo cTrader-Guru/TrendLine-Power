@@ -188,7 +188,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.2";
+        public const string VERSION = "2.0.3";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 

@@ -21,6 +21,21 @@ namespace cAlgo
             GoToMyPage.Invoke(null, EventArgs.Empty);
         }
 
+        public void Save(string comment)
+        {
+
+            MyTrendLine.Comment = comment;
+            Close();
+
+        }
+
+        public string GetTrendComment()
+        {
+
+            return MyTrendLine.Comment;
+
+        }
+
         public FrmWrapper(ChartTrendLine trendline)
         {
 
@@ -38,8 +53,7 @@ namespace cAlgo
 
             // --> Carico la pagina iniziale
             mybrowser.DocumentText = HTML.index;
-
-            
+                        
         }
 
     }

@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
 
     <style>
-        label,a {
+        label,
+        a {
             font-size: 10px !important;
         }
 
@@ -48,6 +49,20 @@
 
             target.style.cursor = "default";
 
+        }
+
+        // --> IE fa cagare
+        function isNumberKey(evt, ele) {
+
+            var theEvent = evt || window.event;
+            var key = theEvent.keyCode || theEvent.which;
+            key = String.fromCharCode(key);
+            var value = ele.value + key;
+            var regex = /^\d+(,\d{0,2})?$/;
+            if (!regex.test(value)) {
+                theEvent.returnValue = false;
+                if (theEvent.preventDefault) theEvent.preventDefault();
+            }
         }
 
     </script>
@@ -236,7 +251,7 @@
 
                     <div class="field">
                         <label>Size</label>
-                        <input id="size" type="number" name="open" min="0.01" step="0.01" style="width:100px">
+                        <input type="text" id="size" name="size" onkeypress="return isNumberKey(event, this)">
                     </div>
 
                 </div>
@@ -275,7 +290,7 @@
             alert: "di"
             , close: "di"
             , open: "di"
-            , size: 0.01
+            , size: "0,01"
 
         };
 
@@ -293,7 +308,7 @@
 
         $("#size").change(function () {
 
-            setup.size = $(this).val() || 0.01;
+            setup.size = $(this).val() || "0,01";
 
         });
 
@@ -303,10 +318,31 @@
 
         });
 
-        $("#version").click(function(){
+        $("#version").click(function () {
 
             window.external.GoExternToPage();
             return false;
+
+        });
+
+        $(window).ready(function () {
+
+            let comment = window.external.GetTrendComment();
+            let splited = (comment && comment.trim().length > 0) ? comment.trim().split("/") : [];
+
+            if (splited.length == 4) {
+
+                setup.alert = splited[0];
+                setup.close = splited[1];
+                setup.open = splited[2];
+                setup.size = splited[3];
+            
+            }
+
+            $('input[name="alert"][value="' + setup.alert + '"]').attr("checked", "checked");
+            $('input[name="close"][value="' + setup.close + '"]').attr("checked", "checked");
+            $('input[name="open"][value="' + setup.open + '"]').attr("checked", "checked");
+            $('#size').val(setup.size);
 
         });
 
