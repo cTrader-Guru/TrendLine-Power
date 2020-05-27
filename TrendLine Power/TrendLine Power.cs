@@ -14,7 +14,6 @@ using System;
 using cAlgo.API;
 using System.Threading;
 using System.Windows.Forms;
-using System.Text.RegularExpressions;
 
 #region Extensions & Class
 
@@ -42,9 +41,6 @@ public static class Flag
 
 }
 
-/// <summary>
-/// Estensione che fornisce dei metodi peculiari del cbot stesso
-/// </summary>
 public static class ChartTrendLineExtensions
 {
 
@@ -192,7 +188,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.1";
+        public const string VERSION = "2.0.2";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -205,6 +201,9 @@ namespace cAlgo.Robots
         #region Property
 
         bool CanDraw = false;
+        Thread ThreadForm;
+        FrmWrapper FormTrendLineOptions;
+        bool KeyDownCTRL = false;
 
         #endregion
 
@@ -213,11 +212,24 @@ namespace cAlgo.Robots
         protected override void OnStart()
         {
 
-            // --> Stampo nei log la versione corrente
-            _log(string.Format("{0} : {1} {2}", NAME, VERSION, PAGE));
-
             // --> Con questo evitiamo errori comuni in backtest
             CanDraw = RunningMode == RunningMode.RealTime || RunningMode == RunningMode.VisualBacktesting;
+
+            // --> Stampo nei log la versione corrente
+            _log(string.Format("{0} {1}", VERSION, PAGE));
+
+            // --> Ogni volta che si inserisce una nuova area aggiorno tutto
+            Chart.IndicatorAreaAdded += _areaAdded;
+
+            // --> Aggiorno le aree da monitorare
+            _updateAllAreaEvents();
+
+        }
+
+        protected override void OnStop()
+        {
+
+            _closeFormTrendLine();
 
         }
 
@@ -263,7 +275,7 @@ namespace cAlgo.Robots
                     continue;
 
                 // --> Se la trendline non è infinita allora devo controllare il tempo
-                if( !myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
+                if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
                 {
 
                     myline.ToDelivered();
@@ -509,10 +521,12 @@ namespace cAlgo.Robots
             {
 
                 // --> double con la virgola e non con il punto
-                if(directive.IndexOf('.') == -1) myLots = Convert.ToDouble(directive);
+                if (directive.IndexOf('.') == -1)
+                    myLots = Convert.ToDouble(directive);
 
+            } catch
+            {
             }
-            catch { }
 
             var volumeInUnits = Symbol.QuantityToVolumeInUnits(myLots);
 
@@ -568,6 +582,138 @@ namespace cAlgo.Robots
             Print("{0} : {1}", NAME, mex);
 
         }
+
+
+        private void _areaAdded(IndicatorAreaAddedEventArgs obj)
+        {
+
+            // --> Aggiorno tutte le aree
+            _updateAllAreaEvents();
+
+        }
+
+        private void _updateAllAreaEvents()
+        {
+
+            // --> Prima rimuovo eventuali handle registrati
+            try
+            {
+
+                Chart.ObjectSelectionChanged -= _objectSelected;
+                Chart.MouseMove -= _onMouseMove;
+
+                foreach (var item in Chart.IndicatorAreas)
+                {
+
+                    item.ObjectSelectionChanged -= _objectSelected;
+                    item.MouseMove -= _onMouseMove;
+
+
+                }
+
+            } catch (Exception exp)
+            {
+
+                Print(exp.Message);
+
+            }
+
+            // --> Poi aggiungo gli handle che mi interessano
+            try
+            {
+
+                Chart.ObjectSelectionChanged += _objectSelected;
+                Chart.MouseMove += _onMouseMove;
+
+                foreach (var item in Chart.IndicatorAreas)
+                {
+
+                    item.ObjectSelectionChanged += _objectSelected;
+                    item.MouseMove += _onMouseMove;
+
+
+                }
+
+            } catch (Exception exp)
+            {
+
+                Print(exp.Message);
+
+            }
+
+        }
+
+        private void _objectSelected(ChartObjectSelectionChangedEventArgs obj)
+        {
+
+            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
+            {
+
+                _closeFormTrendLine();
+
+                if (obj.IsObjectSelected && KeyDownCTRL)
+                {
+
+                    ThreadForm = new Thread(_createFormTrendLineOptions);
+
+                    ThreadForm.SetApartmentState(ApartmentState.STA);
+                    ThreadForm.Start(obj.ChartObject);
+
+                }
+
+            }
+
+        }
+
+        private void _createFormTrendLineOptions(object data)
+        {
+            try
+            {
+
+                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data) 
+                {
+
+                    Icon = Icons.logo
+
+                };
+                               
+                FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
+
+                // --> FormTrendLineOptions.FormClosed += delegate { /*TODO*/ };
+
+                FormTrendLineOptions.ShowDialog();
+
+            } catch (Exception exp)
+            {
+
+                Print(exp.Message);
+
+            }
+
+        }
+
+        private void _closeFormTrendLine()
+        {
+
+            try
+            {
+
+                FormTrendLineOptions.Close();
+
+            } catch
+            {
+
+            }
+
+        }
+
+        private void _onMouseMove(ChartMouseEventArgs eventArgs)
+        {
+
+            KeyDownCTRL = eventArgs.CtrlKey;
+
+        }
+
 
         #endregion
 

@@ -38,6 +38,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -49,8 +50,41 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FrmWrapper.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmWrapper.Designer.cs">
+      <DependentUpon>FrmWrapper.cs</DependentUpon>
+    </Compile>
+    <Compile Include="HTML.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>HTML.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Icons.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Icons.resx</DependentUpon>
+    </Compile>
     <Compile Include="TrendLine Power.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="FrmWrapper.resx">
+      <DependentUpon>FrmWrapper.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="HTML.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>HTML.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Icons.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Icons.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="SRC\html\index.html" />
+    <Content Include="SRC\img\redlogo32_rounded.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
