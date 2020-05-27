@@ -14,8 +14,33 @@ using System;
 using cAlgo.API;
 using System.Threading;
 using System.Windows.Forms;
+using System.Text.RegularExpressions;
 
-#region Extensions
+#region Extensions & Class
+
+public static class Flag
+{
+
+    public const char Separator = '/';
+
+    public const string DELIVERED = "delivered";
+
+    public const string DISABLED = "di";
+
+    public const string OpenBuyStop = "bs";
+    public const string OpenBuyStopBar = "bb";
+    public const string OpenBuyLimit = "bl";
+
+    public const string OpenSellStop = "ss";
+    public const string OpenSellStopBar = "sb";
+    public const string OpenSellLimit = "sl";
+
+    public const string Over = "ox";
+    public const string OverBar = "ob";
+    public const string Under = "ux";
+    public const string UnderBar = "ub";
+
+}
 
 /// <summary>
 /// Estensione che fornisce dei metodi peculiari del cbot stesso
@@ -23,52 +48,109 @@ using System.Windows.Forms;
 public static class ChartTrendLineExtensions
 {
 
-    private static readonly Color ActivateLongColor = Color.DodgerBlue;
-    private static readonly Color ActivateShortColor = Color.Red;
-    private static readonly Color DeliveredColor = Color.Gray;
+    private static readonly Color ColorBuy = Color.DodgerBlue;
+    private static readonly Color ColorSell = Color.Red;
+    private static readonly Color ColorClose = Color.Violet;
+    private static readonly Color ColorAlert = Color.Orange;
+    private static readonly Color ColorAllDisabled = Color.Gray;
+    private static readonly Color ColorDelivered = Color.Gray;
 
-    /// <summary>
-    /// Aggiorna lo stato delle trendline con breakout dal basso verso l'alto
-    /// </summary>
-    /// <param name="MyTrendLine">La trendline da modificare</param>
-    public static void ToOver(this ChartTrendLine MyTrendLine)
+
+    public static ChartTrendLine ToBuy(this ChartTrendLine MyTrendLine)
     {
 
-        MyTrendLine.Color = ActivateLongColor;
-        MyTrendLine.Thickness = 2;
-        MyTrendLine.LineStyle = LineStyle.Solid;
-        MyTrendLine.ExtendToInfinity = true;
+        MyTrendLine.Color = ColorBuy;
+        MyTrendLine.Thickness = 1;
         MyTrendLine.IsInteractive = true;
+
+        return MyTrendLine;
 
     }
 
-    /// <summary>
-    /// Aggiorna lo stato delle trendline con breakout dall'alto verso il basso
-    /// </summary>
-    /// <param name="MyTrendLine">La trendline da modificare</param>
-    public static void ToUnder(this ChartTrendLine MyTrendLine)
+    public static ChartTrendLine ToSell(this ChartTrendLine MyTrendLine)
     {
 
-        MyTrendLine.Color = ActivateShortColor;
-        MyTrendLine.Thickness = 2;
-        MyTrendLine.LineStyle = LineStyle.Solid;
-        MyTrendLine.ExtendToInfinity = true;
+        MyTrendLine.Color = ColorSell;
+        MyTrendLine.Thickness = 1;
         MyTrendLine.IsInteractive = true;
+
+        return MyTrendLine;
 
     }
 
-    /// <summary>
-    /// Aggiorna lo stato delle trendline che hanno adempiuto al proprio dovere
-    /// </summary>
-    /// <param name="MyTrendLine">La trendline da modificare</param>
+    public static void ToAllDisabled(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.Color = ColorAllDisabled;
+        MyTrendLine.LineStyle = LineStyle.DotsRare;
+        MyTrendLine.Thickness = 1;
+
+    }
+
     public static void ToDelivered(this ChartTrendLine MyTrendLine)
     {
 
-        MyTrendLine.Comment = "delivered";
-        MyTrendLine.Color = DeliveredColor;
-        MyTrendLine.Thickness = 1;
+        MyTrendLine.Comment = Flag.DELIVERED;
+        MyTrendLine.Color = ColorDelivered;
         MyTrendLine.LineStyle = LineStyle.DotsRare;
-        MyTrendLine.ExtendToInfinity = true;
+        MyTrendLine.Thickness = 1;
+
+    }
+
+    public static void ToClose(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.Color = ColorClose;
+        MyTrendLine.LineStyle = LineStyle.DotsRare;
+        MyTrendLine.Thickness = 2;
+
+    }
+
+    public static void ToCloseBar(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.Color = ColorClose;
+        MyTrendLine.LineStyle = LineStyle.DotsVeryRare;
+        MyTrendLine.Thickness = 2;
+
+    }
+
+    public static void ToAlert(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.Color = ColorAlert;
+        MyTrendLine.LineStyle = LineStyle.DotsRare;
+        MyTrendLine.Thickness = 1;
+
+    }
+
+    public static void ToAlertBar(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.Color = ColorAlert;
+        MyTrendLine.LineStyle = LineStyle.DotsVeryRare;
+        MyTrendLine.Thickness = 1;
+
+    }
+
+    public static void Stop(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.LineStyle = LineStyle.DotsRare;
+
+    }
+
+    public static void StopBar(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.LineStyle = LineStyle.DotsVeryRare;
+
+    }
+
+    public static void Limit(this ChartTrendLine MyTrendLine)
+    {
+
+        MyTrendLine.LineStyle = LineStyle.Solid;
 
     }
 
@@ -85,87 +167,44 @@ namespace cAlgo.Robots
 
         #region Enums & Class
 
-        /// <summary>
-        /// Definisce le tipologie di breakout che la trendline deve osservare
-        /// </summary>
-        public enum _BreakOutType
+        public enum CurrentStateLine
         {
 
-            BreakOut,
-            BreakOutBar,
-            Disabled
+            Over,
+            OverBar,
+            Under,
+            UnderBar,
+            Undefined
 
         }
 
-        /// <summary>
-        /// Definisce le tipologie di rimozione ordini pendenti che la trendline deve osservare e degli alerts
-        /// </summary>
-        public enum _ActionType
+        public enum OnState
         {
 
-            Open,
-            Close,
-            All,
-            Disabled
+            Tick,
+            Bar
 
         }
 
         #endregion
 
         #region Identity
-        
-        /// <summary>
-        /// Nome del prodotto, identificativo, da modificare con il nome della propria creazione
-        /// </summary>
+
         public const string NAME = "Trendline Power";
 
-        /// <summary>
-        /// La versione del prodotto, progressivo, utilie per controllare gli aggiornamenti se viene reso disponibile sul sito ctrader.guru
-        /// </summary>
-        public const string VERSION = "1.0.1";
+        public const string VERSION = "2.0.0";
+
+        public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
         #endregion
 
         #region Params
 
-        [Parameter(NAME + " " + VERSION, Group = "Identity", DefaultValue = "https://ctrader.guru/product/trendline-power/")]
-        public string ProductInfo { get; set; }
-
-        [Parameter("Label ( Magic Name )", Group = "Identity", DefaultValue = NAME)]
-        public string MyLabel { get; set; }
-
-        [Parameter("Open", Group = "Options", DefaultValue = _BreakOutType.BreakOutBar)]
-        public _BreakOutType MyOpenMode { get; set; }
-
-        [Parameter("Close", Group = "Options", DefaultValue = _BreakOutType.BreakOutBar)]
-        public _BreakOutType MyCloseMode { get; set; }
-
-        [Parameter("Remove Pending", Group = "Options", DefaultValue = _ActionType.All)]
-        public _ActionType MyPendingMode { get; set; }
-
-        [Parameter("Alert", Group = "Options", DefaultValue = _ActionType.All)]
-        public _ActionType MyAlertMode { get; set; }
-
-        [Parameter("Lots", Group = "Money Management", DefaultValue = 0.01, MinValue = 0.01, Step = 0.01)]
-        public double MyLots { get; set; }
-
-        [Parameter("Stop Loss", Group = "Money Management", DefaultValue = 30, MinValue = 0, Step = 0.1)]
-        public double SL { get; set; }
-
-        [Parameter("Take Profit", Group = "Money Management", DefaultValue = 30, MinValue = 0, Step = 0.1)]
-        public double TP { get; set; }
-
-        [Parameter("Slippage", Group = "Money Management", DefaultValue = 2, MinValue = 0.1, Step = 0.1)]
-        public double MySlippage { get; set; }
-
-        [Parameter("Max Spread allowed", Group = "Filters", DefaultValue = 1.5, MinValue = 0.1, Step = 0.1)]
-        public double SpreadToTrigger { get; set; }
-
         #endregion
 
         #region Property
 
-        bool AlertInThisBar = false;
+        bool CanDraw = false;
 
         #endregion
 
@@ -175,7 +214,10 @@ namespace cAlgo.Robots
         {
 
             // --> Stampo nei log la versione corrente
-            Print("{0} : {1}", NAME, VERSION);
+            _log(string.Format("{0} : {1} {2}", NAME, VERSION, PAGE));
+
+            // --> Con questo evitiamo errori comuni in backtest
+            CanDraw = RunningMode == RunningMode.RealTime || RunningMode == RunningMode.VisualBacktesting;
 
         }
 
@@ -183,15 +225,15 @@ namespace cAlgo.Robots
         {
 
             // --> Controllo lo stato delle trendlines e le relative azioni da intraprendere
-            _checkTrendLines();
+            _checkTrendLines(OnState.Tick);
 
         }
 
         protected override void OnBar()
         {
 
-            // --> Resetto il flag per la candela
-            AlertInThisBar = false;
+            // --> Controllo lo stato delle trendlines e le relative azioni da intraprendere
+            _checkTrendLines(OnState.Bar);
 
         }
 
@@ -199,73 +241,116 @@ namespace cAlgo.Robots
 
         #region Private Methods
 
-        /// <summary>
-        /// Passa al setaccio tutte le trendlines per adeguarle alle intenzioni
-        /// </summary>
-        private void _checkTrendLines()
+        private void _checkTrendLines(OnState mystate)
         {
 
             // --> Prelevo le trendline
             ChartTrendLine[] alltrendlines = Chart.FindAllObjects<ChartTrendLine>();
 
-            // --> Controllo una alla volta il dafarsi
+            // --> Le passo al setaccio
             foreach (ChartTrendLine myline in alltrendlines)
             {
 
-                // --> Se è non inizializzata ci penso io
+                // --> Se non è inizializzata non devo fare nulla
                 if (myline.Comment == null)
-                    myline.Comment = "";
+                    continue;
 
-                // --> Utilizziamo i commenti per individuare i comandi
-                switch (myline.Comment.ToLower())
+                // --> Potrebbe essere in un protoccollo non in linea con le aspettative
+                string[] directive = myline.Comment.Split(Flag.Separator);
+
+                // --> Aggiorno il feedback visivo
+                if (!_checkFeedback(myline, directive))
+                    continue;
+
+                // --> Prelevo il prezzo della trendline
+                double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
+
+                // --> Prelevo lo stato attuale del prezzo
+                CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
+
+                switch (mystate)
                 {
 
-                    // --> Vecchia trendline, può essere rimossa ma meglio lasciarla come storico sul grafico
-                    case "delivered":
+                    // --> Solo controlli per le bar, 
+                    case OnState.Bar:
 
-                        // --> Chart.RemoveObject(myline.Name);
+                        if (myPricePosition == CurrentStateLine.OverBar)
+                        {
 
-                        break;
+                            if (directive[0] == Flag.OverBar)
+                                _alert(myline);
 
-                    case "over":
+                            if (directive[1] == Flag.OverBar)
+                                _close(myline);
 
-                        // --> Cambio lo stile della trendline
-                        myline.ToOver();
+                            if (directive[2] == Flag.OpenBuyStopBar)
+                                _open(myline, TradeType.Buy, directive[3]);
 
-                        // --> Eseguo operazioni di controllo prima per le chiusure e poi per le aperture
-                        _checkActionCloseOver(myline);
-                        _checkActionOpenOver(myline);
+                        }
+                        else if (myPricePosition == CurrentStateLine.UnderBar)
+                        {
 
-                        break;
+                            if (directive[0] == Flag.UnderBar)
+                                _alert(myline);
 
-                    case "under":
+                            if (directive[1] == Flag.UnderBar)
+                                _close(myline);
 
-                        // --> Stesse operazioni per Over ma in questo caso per Under
-                        myline.ToUnder();
-                        _checkActionCloseUnder(myline);
-                        _checkActionOpenUnder(myline);
+                            if (directive[2] == Flag.OpenSellStopBar)
+                                _open(myline, TradeType.Sell, directive[3]);
+
+                        }
 
                         break;
                     default:
 
 
-                        // --> Prelevo il prezzo corrente della trendline di riferimento
-                        double price = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
-
-                        // --> Recepisco il comando
-                        if (price > Ask)
+                        if (myPricePosition == CurrentStateLine.Over)
                         {
 
-                            myline.Comment = "over";
+                            if (directive[0] == Flag.Over)
+                                _alert(myline);
+
+                            if (directive[1] == Flag.Over)
+                                _close(myline);
+
+                            if (directive[2] == Flag.OpenBuyStop)
+                            {
+
+                                _open(myline, TradeType.Buy, directive[3]);
+
+                            }
+                            else if (directive[2] == Flag.OpenSellLimit)
+                            {
+
+                                _open(myline, TradeType.Sell, directive[3]);
+
+                            }
 
                         }
-                        else if (price < Bid)
+                        else if (myPricePosition == CurrentStateLine.Under)
                         {
 
-                            myline.Comment = "under";
+                            if (directive[0] == Flag.Under)
+                                _alert(myline);
+
+                            if (directive[1] == Flag.Under)
+                                _close(myline);
+
+                            if (directive[2] == Flag.OpenSellStop)
+                            {
+
+                                _open(myline, TradeType.Sell, directive[3]);
+
+                            }
+                            else if (directive[2] == Flag.OpenBuyLimit)
+                            {
+
+                                _open(myline, TradeType.Buy, directive[3]);
+
+                            }
 
                         }
-
 
                         break;
 
@@ -275,248 +360,120 @@ namespace cAlgo.Robots
 
         }
 
-        /// <summary>
-        /// Stampa informazioni nei log
-        /// </summary>
-        /// <param name="mex">Il messaggio da registrare nei log</param>
-        private void _log(string mex)
+        private bool _checkFeedback(ChartTrendLine myline, string[] directive)
         {
 
-            if (RunningMode != RunningMode.RealTime)
-                return;
-
-            Print("{0} : {1}", NAME, mex);
-
-        }
-
-        /// <summary>
-        /// Controlla lo stato del breakout OVER a seconda delle opzioni scelte
-        /// </summary>
-        /// <param name="myline">Le trendline da controllare</param>
-        /// <param name="mybreakout">Il tipo di breakout da considerare</param>
-        /// <returns>Restituisce true se siamo in presenza di un breakout</returns>
-        private bool _haveBreakOutOver(ChartTrendLine myline, _BreakOutType mybreakout)
-        {
-
-            // --> Se è disabilitato è inutile proseguire
-            if (mybreakout == _BreakOutType.Disabled)
+            // --> Mi aspetto 4 elementi altrimenti avanti un altro
+            if (directive.Length != 4)
                 return false;
 
-            // --> Recupero il prezzo corrispondente alla trendline
-            double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
-
-            // --> Decidiamo cosa fare a seconda della condizione delle candele
-            switch (mybreakout)
+            // --> L'ultima ha la precedenza, ovvero l'apertura
+            if (directive[2] == Flag.OpenBuyStop)
             {
 
-                // --> Semplice breakout non appena supera la linea di trend
-                case _BreakOutType.BreakOut:
+                myline.ToBuy().Stop();
 
-                    return (Ask > lineprice);
+            }
+            else if (directive[2] == Flag.OpenBuyStopBar)
+            {
 
-                // --> Aspettiamo la chiusura della candela e ad ogni modo abbiamo una candela di tempo per chiudere tutto
-                case _BreakOutType.BreakOutBar:
+                myline.ToBuy().StopBar();
 
-                    // --> Devo avere l'apertura della candela corrente sopra la linea di trend e l'apertura della precedente sotto, potrebbe esserci un GAP
-                    return (Bars.LastBar.Open > lineprice && Bars.Last(1).Open < lineprice);
+            }
+            else if (directive[2] == Flag.OpenBuyLimit)
+            {
 
+                myline.ToBuy().Limit();
+
+            }
+            else if (directive[2] == Flag.OpenSellStop)
+            {
+
+                myline.ToSell().Stop();
+
+            }
+            else if (directive[2] == Flag.OpenSellStopBar)
+            {
+
+                myline.ToSell().StopBar();
+
+            }
+            else if (directive[2] == Flag.OpenSellLimit)
+            {
+
+                myline.ToSell().Limit();
+
+            }
+            // --> Le chiusure
+            else if (directive[1] == Flag.Over || directive[1] == Flag.Under)
+            {
+
+                myline.ToClose();
+
+            }
+            else if (directive[1] == Flag.OverBar || directive[1] == Flag.UnderBar)
+            {
+
+                myline.ToCloseBar();
+
+            }
+            // --> Gli alerts
+            else if (directive[0] == Flag.Over || directive[0] == Flag.Under)
+            {
+
+                myline.ToAlert();
+
+            }
+            else if (directive[0] == Flag.OverBar || directive[0] == Flag.UnderBar)
+            {
+
+                myline.ToAlertBar();
+
+            }
+            else if (directive[0] == Flag.DISABLED && directive[1] == Flag.DISABLED && directive[2] == Flag.DISABLED)
+            {
+
+                myline.ToAllDisabled();
+
+            }
+            else
+            {
+
+                return false;
 
             }
 
-            return false;
+            return true;
 
         }
 
-        /// <summary>
-        /// Controlla lo stato del breakout UNDER a seconda delle opzioni scelte
-        /// </summary>
-        /// <param name="myline">Le trendline da controllare</param>
-        /// <param name="mybreakout">Il tipo di breakout da considerare</param>
-        /// <returns>Restituisce true se siamo in presenza di un breakout</returns>
-        private bool _haveBreakOutUnder(ChartTrendLine myline, _BreakOutType mybreakout)
+        private void _alert(ChartTrendLine myline)
         {
 
-            // --> Se è disabilitato è inutile proseguire
-            if (mybreakout == _BreakOutType.Disabled)
-                return false;
-
-            // --> Recupero il prezzo corrispondente alla trendline
-            double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
-
-            // --> Decidiamo cosa fare a seconda della condizione delle candele
-            switch (mybreakout)
-            {
-
-                // --> Semplice breakout non appena supera la linea di trend
-                case _BreakOutType.BreakOut:
-
-                    return (Bid < lineprice);
-
-                // --> Aspettiamo la chiusura della candela e ad ogni modo abbiamo una candela di tempo per chiudere tutto
-                case _BreakOutType.BreakOutBar:
-
-                    // --> Devo avere l'apertura della candela corrente sotto la linea di trend e l'apertura della precedente sopra, potrebbe esserci un GAP
-                    return (Bars.LastBar.Open < lineprice && Bars.Last(1).Open > lineprice);
-
-            }
-
-            return false;
-
-        }
-
-        /// <summary>
-        /// Gestisce le popup per gli alert
-        /// </summary>
-        private void _alert()
-        {
-
-            if (RunningMode != RunningMode.RealTime || AlertInThisBar)
+            if (!CanDraw)
                 return;
 
             string mex = string.Format("{0} : {1} breakout, Ask {2} / Bid {3}", NAME, SymbolName, Ask.ToString(), Bid.ToString());
 
-            AlertInThisBar = true;
-
-            // --> La popup non deve interrompere la logica delle API, apertura e chiusura
-
-            new Thread(new ThreadStart(delegate { MessageBox.Show(mex, "BreakOut", MessageBoxButtons.OK, MessageBoxIcon.Information); })).Start();
-
-
-        }
-
-        /// <summary>
-        /// Controllo le condizioni di apertura alla rottura della trend line
-        /// </summary>
-        /// <param name="myline">La trendline da esaminare</param>
-        private void _checkActionOpenOver(ChartTrendLine myline)
-        {
-
-            // --> Solo breakout quindi se diversamente predisposto esco, anche se non sono in condizioni di prezzo giuste
-            if (!_haveBreakOutOver(myline, MyOpenMode))
-                return;
-
-            // --> Potrebbero esserci allargamenti di spread
-            if (Symbol.Spread < SpreadToTrigger)
+            if (RunningMode == RunningMode.VisualBacktesting)
             {
 
-                var volumeInUnits = Symbol.QuantityToVolumeInUnits(MyLots);
-
-                TradeResult result = ExecuteMarketRangeOrder(TradeType.Buy, Symbol.Name, volumeInUnits, MySlippage, Ask, MyLabel, SL, TP);
-
-                if (!result.IsSuccessful)
-                    _log("can't open new order buy (" + result.Error + ")");
+                _log(mex);
 
             }
             else
             {
 
-                // --> Meglio registrate quanto accaduto per una indagine successiva
-                _log("max spread hit " + Symbol.Spread.ToString("N1"));
+                // --> La popup non deve interrompere la logica delle API, apertura e chiusura
+                new Thread(new ThreadStart(delegate { MessageBox.Show(mex, "BreakOut", MessageBoxButtons.OK, MessageBoxIcon.Information); })).Start();
 
             }
 
-            if (MyPendingMode == _ActionType.All || MyPendingMode == _ActionType.Open)
-                _basketRemovePending();
-
-            if (MyAlertMode == _ActionType.All || MyAlertMode == _ActionType.Open)
-                _alert();
-
-            // --> comunque vada rendo inefficace la trendline
             myline.ToDelivered();
 
         }
 
-        /// <summary>
-        /// Controllo le condizioni di chiusura alla rottura della trend line
-        /// </summary>
-        /// <param name="myline">La trendline da esaminare</param>
-        private void _checkActionCloseOver(ChartTrendLine myline)
-        {
-
-            // --> Solo breakout quindi se diversamente predisposto esco, anche se non sono in condizioni di prezzo giuste
-            if (!_haveBreakOutOver(myline, MyCloseMode))
-                return;
-
-            _basketClose();
-
-            if (MyPendingMode == _ActionType.All || MyPendingMode == _ActionType.Close)
-                _basketRemovePending();
-
-            if (MyAlertMode == _ActionType.All || MyAlertMode == _ActionType.Close)
-                _alert();
-
-            // --> comunque vada rendo inefficace la trendline
-            myline.ToDelivered();
-
-        }
-
-        /// <summary>
-        /// Controllo le condizioni di apertura alla rottura della trend line
-        /// </summary>
-        /// <param name="myline">La trendline da esaminare</param>
-        private void _checkActionOpenUnder(ChartTrendLine myline)
-        {
-
-            // --> Solo breakout quindi se diversamente predisposto esco, anche se non sono in condizioni di prezzo giuste
-            if (!_haveBreakOutUnder(myline, MyOpenMode))
-                return;
-
-            // --> Potrebbero esserci allargamenti di spread
-            if (Symbol.Spread < SpreadToTrigger)
-            {
-
-                var volumeInUnits = Symbol.QuantityToVolumeInUnits(MyLots);
-
-                TradeResult result = ExecuteMarketRangeOrder(TradeType.Sell, Symbol.Name, volumeInUnits, MySlippage, Bid, MyLabel, SL, TP);
-
-                if (!result.IsSuccessful)
-                    _log("can't open new order sell (" + result.Error + ")");
-
-            }
-            else
-            {
-
-                // --> Meglio registrate quanto accaduto per una indagine successiva
-                _log("max spread hit " + Symbol.Spread.ToString("N1"));
-
-            }
-
-            if (MyPendingMode == _ActionType.All || MyPendingMode == _ActionType.Open)
-                _basketRemovePending();
-
-            if (MyAlertMode == _ActionType.All || MyAlertMode == _ActionType.Open)
-                _alert();
-
-            // --> comunque vada rendo inefficace la trendline
-            myline.ToDelivered();
-
-        }
-
-        /// <summary>
-        /// Controllo le condizioni di chiusura alla rottura della trend line
-        /// </summary>
-        /// <param name="myline">La trendline da esaminare</param>
-        private void _checkActionCloseUnder(ChartTrendLine myline)
-        {
-
-            // --> Solo breakout quindi se diversamente predisposto esco, anche se non sono in condizioni di prezzo giuste
-            if (!_haveBreakOutUnder(myline, MyCloseMode))
-                return;
-
-            _basketClose();
-
-            if (MyPendingMode == _ActionType.All || MyPendingMode == _ActionType.Close)
-                _basketRemovePending();
-
-            if (MyAlertMode == _ActionType.All || MyAlertMode == _ActionType.Close)
-                _alert();
-
-            // --> comunque vada rendo inefficace la trendline
-            myline.ToDelivered();
-
-        }
-        
-        private void _basketClose()
+        private void _close(ChartTrendLine myline)
         {
 
             // --> Chiudo tutti i trade di questo simbolo
@@ -530,20 +487,72 @@ namespace cAlgo.Robots
 
             }
 
+            myline.ToDelivered();
+
         }
 
-        private void _basketRemovePending()
+        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0.01", string mylabel = null, double slippage = 20)
         {
 
-            foreach (var order in PendingOrders)
+            // --> La direttiva mi indica la size
+            string onlyNumber = (directive == null) ? "" : Regex.Match(directive, "\\d+").Value;
+
+            double myLots = (onlyNumber == "") ? 0.01 : Convert.ToDouble(onlyNumber);
+            if (myLots < 0.01)
+                myLots = 0.01;
+
+            var volumeInUnits = Symbol.QuantityToVolumeInUnits(myLots);
+
+            TradeResult result = ExecuteMarketRangeOrder(mytype, Symbol.Name, volumeInUnits, slippage, mytype == TradeType.Buy ? Ask : Bid, mylabel, 0, 0);
+
+            if (!result.IsSuccessful)
+                _log("can't open new trade " + mytype.ToString("G") + " (" + result.Error + ")");
+
+            // --> Anche se non dovesse aprire la disabilito, potrebbe creare più problemi che altro
+            myline.ToDelivered();
+
+        }
+
+        private CurrentStateLine _checkCurrentState(double lineprice)
+        {
+
+            // --> Primo e secondo controllo per le bar, quindi per la precedente perchè si presume che venga chiamato OnBar
+            if (Bars.OpenPrices.Last(1) < lineprice && Bars.ClosePrices.Last(1) > lineprice)
             {
 
-                if (order.SymbolName != SymbolName)
-                    continue;
-
-                CancelPendingOrderAsync(order);
+                return CurrentStateLine.OverBar;
 
             }
+            else if (Bars.OpenPrices.Last(1) > lineprice && Bars.ClosePrices.Last(1) < lineprice)
+            {
+
+                return CurrentStateLine.UnderBar;
+
+            }
+            else if (Bid > lineprice)
+            {
+
+                return CurrentStateLine.Over;
+
+            }
+            else if (Ask < lineprice)
+            {
+
+                return CurrentStateLine.Under;
+
+            }
+
+            return CurrentStateLine.Undefined;
+
+        }
+
+        private void _log(string mex)
+        {
+
+            if (!CanDraw)
+                return;
+
+            Print("{0} : {1}", NAME, mex);
 
         }
 
