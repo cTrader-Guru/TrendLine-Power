@@ -192,7 +192,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.0";
+        public const string VERSION = "2.0.1";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -261,6 +261,15 @@ namespace cAlgo.Robots
                 // --> Aggiorno il feedback visivo
                 if (!_checkFeedback(myline, directive))
                     continue;
+
+                // --> Se la trendline non è infinita allora devo controllare il tempo
+                if( !myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
+                {
+
+                    myline.ToDelivered();
+                    continue;
+
+                }
 
                 // --> Prelevo il prezzo della trendline
                 double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
@@ -491,15 +500,19 @@ namespace cAlgo.Robots
 
         }
 
-        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0.01", string mylabel = null, double slippage = 20)
+        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0,01", string mylabel = null, double slippage = 20)
         {
 
-            // --> La direttiva mi indica la size
-            string onlyNumber = (directive == null) ? "" : Regex.Match(directive, "\\d+").Value;
+            double myLots = 0.01;
 
-            double myLots = (onlyNumber == "") ? 0.01 : Convert.ToDouble(onlyNumber);
-            if (myLots < 0.01)
-                myLots = 0.01;
+            try
+            {
+
+                // --> double con la virgola e non con il punto
+                if(directive.IndexOf('.') == -1) myLots = Convert.ToDouble(directive);
+
+            }
+            catch { }
 
             var volumeInUnits = Symbol.QuantityToVolumeInUnits(myLots);
 
