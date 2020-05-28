@@ -200,7 +200,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.4";
+        public const string VERSION = "2.0.5";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -282,7 +282,7 @@ namespace cAlgo.Robots
             // --> Le passo al setaccio
             foreach (ChartTrendLine myline in alltrendlines)
             {
-                
+
                 _manageTrendLine(mystate, myline);
 
             }
@@ -313,8 +313,8 @@ namespace cAlgo.Robots
 
             }
             else if (myline.Time1 > Bars.LastBar.OpenTime && myline.Time2 > Bars.LastBar.OpenTime)
-            { // --> Sono nel futuro, non opero
-
+            {
+                // --> Sono nel futuro, non opero
                 return;
 
             }
@@ -469,7 +469,7 @@ namespace cAlgo.Robots
             }
 
             // --> Ricostruisco le direttive
-            myline.Comment = string.Join("/",directive);
+            myline.Comment = string.Join("/", directive);
 
         }
 
@@ -616,8 +616,7 @@ namespace cAlgo.Robots
                 if (directive.IndexOf('.') == -1)
                     myLots = Convert.ToDouble(directive);
 
-            }
-            catch
+            } catch
             {
             }
 
@@ -704,8 +703,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -728,8 +726,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -765,7 +762,7 @@ namespace cAlgo.Robots
             try
             {
 
-                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data)
+                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data) 
                 {
 
                     Icon = Icons.logo
@@ -773,8 +770,7 @@ namespace cAlgo.Robots
                 };
 
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
-                FormTrendLineOptions.UpdateTrendLine += delegate // -->(object sender, FrmWrapper.TrendLineData args)
-                {
+                    // -->(object sender, FrmWrapper.TrendLineData args)
 
                     /*
                     ChartTrendLine tmp = args.TrendLine;
@@ -785,12 +781,11 @@ namespace cAlgo.Robots
                     Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
                     */
 
-                };
+                FormTrendLineOptions.UpdateTrendLine += delegate { }                ;
 
                 FormTrendLineOptions.ShowDialog();
 
-            }
-            catch (Exception exp)
+            } catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -807,8 +802,7 @@ namespace cAlgo.Robots
 
                 FormTrendLineOptions.Close();
 
-            }
-            catch
+            } catch
             {
 
             }

@@ -42,7 +42,7 @@ namespace cAlgo
 
             UpdateTrendLine.Invoke(null, args);
             */
-
+            
             UpdateTrendLine.Invoke(null, EventArgs.Empty);
             Close();
 
