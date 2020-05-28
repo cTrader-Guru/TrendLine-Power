@@ -25,6 +25,7 @@ using System;
 using cAlgo.API;
 using System.Threading;
 using System.Windows.Forms;
+using System.Linq;
 
 #region Extensions & Class
 
@@ -173,7 +174,7 @@ namespace cAlgo.Robots
     {
 
         #region Enums & Class
-        
+
         public enum CurrentStateLine
         {
 
@@ -228,7 +229,7 @@ namespace cAlgo.Robots
 
             // --> Stampo nei log la versione corrente
             _log(string.Format("{0} {1}", VERSION, PAGE));
-            
+
             // --> Ogni volta che si inserisce una nuova area aggiorno tutto
             Chart.IndicatorAreaAdded += _areaAdded;
 
@@ -264,8 +265,16 @@ namespace cAlgo.Robots
 
         #region Private Methods
 
-        private void _checkTrendLines(OnState mystate)
+        private void _checkTrendLines(OnState mystate, ChartTrendLine OneLine = null)
         {
+
+            if (OneLine != null)
+            {
+
+                _manageTrendLine(mystate, OneLine);
+                return;
+
+            }
 
             // --> Prelevo le trendline dal grafico generale
             ChartTrendLine[] alltrendlines = Chart.FindAllObjects<ChartTrendLine>();
@@ -273,127 +282,194 @@ namespace cAlgo.Robots
             // --> Le passo al setaccio
             foreach (ChartTrendLine myline in alltrendlines)
             {
-
-                // --> Se non è inizializzata non devo fare nulla
-                if (myline.Comment == null)
-                    continue;
-
-                // --> Potrebbe essere in un protoccollo non in linea con le aspettative
-                string[] directive = myline.Comment.Split(Flag.Separator);
-
-                // --> Aggiorno il feedback visivo
-                if (!_checkFeedback(myline, directive))
-                    continue;
-
-                // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
-                if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
-                {
-
-                    myline.ToDelivered();
-                    continue;
-
-                }else if(myline.Time1 > Bars.LastBar.OpenTime && myline.Time2 > Bars.LastBar.OpenTime)
-                { // --> Sono nel futuro, non opero
-
-                    return;
-
-                }
-
-                // --> Prelevo il prezzo della trendline
-                double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
-
-                // --> Prelevo lo stato attuale del prezzo
-                CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
-
-                switch (mystate)
-                {
-
-                    // --> Solo controlli per le bar, 
-                    case OnState.Bar:
-
-                        if (myPricePosition == CurrentStateLine.OverBar)
-                        {
-
-                            if (directive[0] == Flag.OverBar)
-                                _alert(myline);
-
-                            if (directive[1] == Flag.OverBar)
-                                _close(myline);
-
-                            if (directive[2] == Flag.OpenBuyStopBar)
-                                _open(myline, TradeType.Buy, directive[3]);
-
-                        }
-                        else if (myPricePosition == CurrentStateLine.UnderBar)
-                        {
-
-                            if (directive[0] == Flag.UnderBar)
-                                _alert(myline);
-
-                            if (directive[1] == Flag.UnderBar)
-                                _close(myline);
-
-                            if (directive[2] == Flag.OpenSellStopBar)
-                                _open(myline, TradeType.Sell, directive[3]);
-
-                        }
-
-                        break;
-                    default:
-
-
-                        if (myPricePosition == CurrentStateLine.Over)
-                        {
-
-                            if (directive[0] == Flag.Over)
-                                _alert(myline);
-
-                            if (directive[1] == Flag.Over)
-                                _close(myline);
-
-                            if (directive[2] == Flag.OpenBuyStop)
-                            {
-
-                                _open(myline, TradeType.Buy, directive[3]);
-
-                            }
-                            else if (directive[2] == Flag.OpenSellLimit)
-                            {
-
-                                _open(myline, TradeType.Sell, directive[3]);
-
-                            }
-
-                        }
-                        else if (myPricePosition == CurrentStateLine.Under)
-                        {
-
-                            if (directive[0] == Flag.Under)
-                                _alert(myline);
-
-                            if (directive[1] == Flag.Under)
-                                _close(myline);
-
-                            if (directive[2] == Flag.OpenSellStop)
-                            {
-
-                                _open(myline, TradeType.Sell, directive[3]);
-
-                            }
-                            else if (directive[2] == Flag.OpenBuyLimit)
-                            {
-
-                                _open(myline, TradeType.Buy, directive[3]);
-
-                            }
-
-                        }
-
-                        break;
-
-                }
+                
+                _manageTrendLine(mystate, myline);
 
             }
+
+        }
+
+        private void _manageTrendLine(OnState mystate, ChartTrendLine myline)
+        {
+
+
+            // --> Se non è inizializzata non devo fare nulla
+            if (myline.Comment == null)
+                return;
+
+            // --> Potrebbe essere in un protoccollo non in linea con le aspettative
+            string[] directive = myline.Comment.Split(Flag.Separator);
+
+            // --> Aggiorno il feedback visivo
+            if (!_checkFeedback(myline, directive))
+                return;
+
+            // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
+            if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
+            {
+
+                myline.ToDelivered();
+                return;
+
+            }
+            else if (myline.Time1 > Bars.LastBar.OpenTime && myline.Time2 > Bars.LastBar.OpenTime)
+            { // --> Sono nel futuro, non opero
+
+                return;
+
+            }
+
+            // --> Prelevo il prezzo della trendline
+            double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
+
+            // --> Prelevo lo stato attuale del prezzo
+            CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
+
+            switch (mystate)
+            {
+
+                // --> Solo controlli per le bar, 
+                case OnState.Bar:
+
+                    if (myPricePosition == CurrentStateLine.OverBar)
+                    {
+
+                        if (directive[0] == Flag.OverBar)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[1] == Flag.OverBar)
+                        {
+
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[2] == Flag.OpenBuyStopBar)
+                        {
+
+                            _open(myline, TradeType.Buy, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+                    }
+                    else if (myPricePosition == CurrentStateLine.UnderBar)
+                    {
+
+                        if (directive[0] == Flag.UnderBar)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[1] == Flag.UnderBar)
+                        {
+
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[2] == Flag.OpenSellStopBar)
+                        {
+
+                            _open(myline, TradeType.Sell, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+
+                    }
+
+                    break;
+                default:
+
+
+                    if (myPricePosition == CurrentStateLine.Over)
+                    {
+
+                        if (directive[0] == Flag.Over)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[1] == Flag.Over)
+                        {
+
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[2] == Flag.OpenBuyStop)
+                        {
+
+                            _open(myline, TradeType.Buy, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+                        else if (directive[2] == Flag.OpenSellLimit)
+                        {
+
+                            _open(myline, TradeType.Sell, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+                    }
+                    else if (myPricePosition == CurrentStateLine.Under)
+                    {
+
+                        if (directive[0] == Flag.Under)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[1] == Flag.Under)
+                        {
+
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[2] == Flag.OpenSellStop)
+                        {
+
+                            _open(myline, TradeType.Sell, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+                        else if (directive[2] == Flag.OpenBuyLimit)
+                        {
+
+                            _open(myline, TradeType.Buy, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+                    }
+
+                    break;
+
+            }
+
+            // --> Ricostruisco le direttive
+            myline.Comment = string.Join("/",directive);
 
         }
 
@@ -506,7 +582,7 @@ namespace cAlgo.Robots
 
             }
 
-            if (myline != null) myline.ToDelivered();
+            // --> if (myline != null) myline.ToDelivered();
 
         }
 
@@ -524,7 +600,7 @@ namespace cAlgo.Robots
 
             }
 
-            myline.ToDelivered();
+            // --> myline.ToDelivered();
 
         }
 
@@ -553,7 +629,7 @@ namespace cAlgo.Robots
                 _log("can't open new trade " + mytype.ToString("G") + " (" + result.Error + ")");
 
             // --> Anche se non dovesse aprire la disabilito, potrebbe creare più problemi che altro
-            myline.ToDelivered();
+            // --> myline.ToDelivered();
 
         }
 
@@ -697,7 +773,19 @@ namespace cAlgo.Robots
                 };
 
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
-                FormTrendLineOptions.UpdateTrendLine += delegate { OnTick(); };
+                FormTrendLineOptions.UpdateTrendLine += delegate // -->(object sender, FrmWrapper.TrendLineData args)
+                {
+
+                    /*
+                    ChartTrendLine tmp = args.TrendLine;
+
+                    ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
+                    newTrendLine.Comment = tmp.Comment;
+
+                    Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
+                    */
+
+                };
 
                 FormTrendLineOptions.ShowDialog();
 

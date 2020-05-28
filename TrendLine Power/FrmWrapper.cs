@@ -10,8 +10,16 @@ namespace cAlgo
     {
         #region Property
 
+        public class TrendLineData : EventArgs
+        {
+
+            public ChartTrendLine TrendLine { get; set; }
+
+        }
+
         public event EventHandler GoToMyPage;
         public event EventHandler UpdateTrendLine;
+        // --> public event EventHandler<TrendLineData> UpdateTrendLine;
 
         private ChartTrendLine MyTrendLine = null;
 
@@ -26,6 +34,15 @@ namespace cAlgo
         {
 
             MyTrendLine.Comment = comment;
+
+            /* --> A prove fatte comunque dobbiamo aspettare il rendering del Chart (OnTick)
+             * 
+            TrendLineData args = new TrendLineData();
+            args.TrendLine = MyTrendLine;
+
+            UpdateTrendLine.Invoke(null, args);
+            */
+
             UpdateTrendLine.Invoke(null, EventArgs.Empty);
             Close();
 
