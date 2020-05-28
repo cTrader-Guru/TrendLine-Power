@@ -11,6 +11,7 @@ namespace cAlgo
         #region Property
 
         public event EventHandler GoToMyPage;
+        public event EventHandler UpdateTrendLine;
 
         private ChartTrendLine MyTrendLine = null;
 
@@ -25,6 +26,7 @@ namespace cAlgo
         {
 
             MyTrendLine.Comment = comment;
+            UpdateTrendLine.Invoke(null, EventArgs.Empty);
             Close();
 
         }

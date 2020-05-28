@@ -8,6 +8,17 @@
     GitHub      : https://github.com/cTraderGURU/
     TOS         : https://ctrader.guru/termini-del-servizio/
 
+    NOTE        : 
+
+        Ho chiesto a questo indirizzo https://ctrader.com/forum/suggestions/23834
+        di aggiungere una feature per accedere ai dati degli indicatori sul grafico,
+        mi aspetto che tu voti questa richiesta per essere implementata nelle prossime
+        versioni delle API.
+
+        In _updateAllAreaEvents() ho commentato il codice che permette di osservare e gestire
+        dal Form i dati, appena la richiesta sarà soddisfatta si potrà intervenire su _checkTrendLines()
+        modificandolo per confrontare i dati degli indicatori.
+
 */
 
 using System;
@@ -162,7 +173,7 @@ namespace cAlgo.Robots
     {
 
         #region Enums & Class
-
+        
         public enum CurrentStateLine
         {
 
@@ -188,7 +199,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.3";
+        public const string VERSION = "2.0.4";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -217,7 +228,7 @@ namespace cAlgo.Robots
 
             // --> Stampo nei log la versione corrente
             _log(string.Format("{0} {1}", VERSION, PAGE));
-
+            
             // --> Ogni volta che si inserisce una nuova area aggiorno tutto
             Chart.IndicatorAreaAdded += _areaAdded;
 
@@ -256,7 +267,7 @@ namespace cAlgo.Robots
         private void _checkTrendLines(OnState mystate)
         {
 
-            // --> Prelevo le trendline
+            // --> Prelevo le trendline dal grafico generale
             ChartTrendLine[] alltrendlines = Chart.FindAllObjects<ChartTrendLine>();
 
             // --> Le passo al setaccio
@@ -274,12 +285,17 @@ namespace cAlgo.Robots
                 if (!_checkFeedback(myline, directive))
                     continue;
 
-                // --> Se la trendline non è infinita allora devo controllare il tempo
+                // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
                 if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
                 {
 
                     myline.ToDelivered();
                     continue;
+
+                }else if(myline.Time1 > Bars.LastBar.OpenTime && myline.Time2 > Bars.LastBar.OpenTime)
+                { // --> Sono nel futuro, non opero
+
+                    return;
 
                 }
 
@@ -468,13 +484,13 @@ namespace cAlgo.Robots
 
         }
 
-        private void _alert(ChartTrendLine myline)
+        private void _alert(ChartTrendLine myline = null, string custom = "")
         {
 
             if (!CanDraw)
                 return;
 
-            string mex = string.Format("{0} : {1} breakout, Ask {2} / Bid {3}", NAME, SymbolName, Ask.ToString(), Bid.ToString());
+            string mex = (custom != "") ? custom : string.Format("{0} : {1} breakout, Ask {2} / Bid {3}", NAME, SymbolName, Ask.ToString(), Bid.ToString());
 
             if (RunningMode == RunningMode.VisualBacktesting)
             {
@@ -490,7 +506,7 @@ namespace cAlgo.Robots
 
             }
 
-            myline.ToDelivered();
+            if (myline != null) myline.ToDelivered();
 
         }
 
@@ -524,7 +540,8 @@ namespace cAlgo.Robots
                 if (directive.IndexOf('.') == -1)
                     myLots = Convert.ToDouble(directive);
 
-            } catch
+            }
+            catch
             {
             }
 
@@ -601,7 +618,7 @@ namespace cAlgo.Robots
 
                 Chart.ObjectSelectionChanged -= _objectSelected;
                 Chart.MouseMove -= _onMouseMove;
-
+                /*
                 foreach (var item in Chart.IndicatorAreas)
                 {
 
@@ -609,9 +626,10 @@ namespace cAlgo.Robots
                     item.MouseMove -= _onMouseMove;
 
 
-                }
+                }*/
 
-            } catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -624,7 +642,7 @@ namespace cAlgo.Robots
 
                 Chart.ObjectSelectionChanged += _objectSelected;
                 Chart.MouseMove += _onMouseMove;
-
+                /*
                 foreach (var item in Chart.IndicatorAreas)
                 {
 
@@ -632,9 +650,10 @@ namespace cAlgo.Robots
                     item.MouseMove += _onMouseMove;
 
 
-                }
+                }*/
 
-            } catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -670,20 +689,20 @@ namespace cAlgo.Robots
             try
             {
 
-                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data) 
+                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data)
                 {
 
                     Icon = Icons.logo
 
                 };
-                               
-                FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
 
-                // --> FormTrendLineOptions.FormClosed += delegate { /*TODO*/ };
+                FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
+                FormTrendLineOptions.UpdateTrendLine += delegate { OnTick(); };
 
                 FormTrendLineOptions.ShowDialog();
 
-            } catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -700,7 +719,8 @@ namespace cAlgo.Robots
 
                 FormTrendLineOptions.Close();
 
-            } catch
+            }
+            catch
             {
 
             }
