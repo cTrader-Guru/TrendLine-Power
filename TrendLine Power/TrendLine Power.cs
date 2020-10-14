@@ -207,7 +207,7 @@ namespace cAlgo.Robots
         #endregion
 
         #region Params
-        
+
         /// <summary>
         /// Riferimenti del prodotto
         /// </summary>
