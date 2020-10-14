@@ -26,6 +26,7 @@ using cAlgo.API;
 using System.Threading;
 using System.Windows.Forms;
 using System.Linq;
+using System.Globalization;
 
 #region Extensions & Class
 
@@ -200,7 +201,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.6";
+        public const string VERSION = "2.0.7";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -626,7 +627,15 @@ namespace cAlgo.Robots
 
                 // --> double con la virgola e non con il punto
                 if (directive.IndexOf('.') == -1)
-                    myLots = Convert.ToDouble(directive);
+                {
+                    NumberFormatInfo provider = new NumberFormatInfo();
+                    provider.NumberDecimalSeparator = ",";
+                    provider.NumberGroupSeparator = ".";
+                    provider.NumberGroupSizes = new int[] { 3 };
+
+                    myLots = Convert.ToDouble(directive, provider);
+
+                }
 
             } catch
             {
