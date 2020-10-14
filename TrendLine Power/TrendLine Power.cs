@@ -200,13 +200,25 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.5";
+        public const string VERSION = "2.0.6";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
         #endregion
 
         #region Params
+        
+        /// <summary>
+        /// Riferimenti del prodotto
+        /// </summary>
+        [Parameter(NAME + " " + VERSION, Group = "Identity", DefaultValue = PAGE)]
+        public string ProductInfo { get; set; }
+
+        /// <summary>
+        /// Label che contraddistingue una operazione
+        /// </summary>
+        [Parameter("Label ( Magic Name )", Group = "Identity", DefaultValue = NAME)]
+        public string MyLabel { get; set; }
 
         #endregion
 
@@ -604,7 +616,7 @@ namespace cAlgo.Robots
 
         }
 
-        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0,01", string mylabel = null, double slippage = 20)
+        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0,01", double slippage = 20)
         {
 
             double myLots = 0.01;
@@ -622,7 +634,7 @@ namespace cAlgo.Robots
 
             var volumeInUnits = Symbol.QuantityToVolumeInUnits(myLots);
 
-            TradeResult result = ExecuteMarketRangeOrder(mytype, Symbol.Name, volumeInUnits, slippage, mytype == TradeType.Buy ? Ask : Bid, mylabel, 0, 0);
+            TradeResult result = ExecuteMarketRangeOrder(mytype, Symbol.Name, volumeInUnits, slippage, mytype == TradeType.Buy ? Ask : Bid, MyLabel, 0, 0);
 
             if (!result.IsSuccessful)
                 _log("can't open new trade " + mytype.ToString("G") + " (" + result.Error + ")");
@@ -770,9 +782,9 @@ namespace cAlgo.Robots
                 };
 
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
-                    // -->(object sender, FrmWrapper.TrendLineData args)
+                // -->(object sender, FrmWrapper.TrendLineData args)
 
-                    /*
+                                /*
                     ChartTrendLine tmp = args.TrendLine;
 
                     ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
@@ -781,7 +793,7 @@ namespace cAlgo.Robots
                     Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
                     */
 
-                FormTrendLineOptions.UpdateTrendLine += delegate { }                ;
+FormTrendLineOptions.UpdateTrendLine += delegate { };
 
                 FormTrendLineOptions.ShowDialog();
 
