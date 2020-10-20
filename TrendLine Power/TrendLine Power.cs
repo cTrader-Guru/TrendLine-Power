@@ -201,7 +201,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.7";
+        public const string VERSION = "2.0.8";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -228,8 +228,8 @@ namespace cAlgo.Robots
         bool CanDraw = false;
         Thread ThreadForm;
         FrmWrapper FormTrendLineOptions;
-        bool KeyDownCTRL = false;
 
+        private ChartObject TrendLineSelected = null;
         #endregion
 
         #region cBot Events
@@ -242,6 +242,12 @@ namespace cAlgo.Robots
 
             // --> Stampo nei log la versione corrente
             _log(string.Format("{0} {1}", VERSION, PAGE));
+
+            // --> Avverto le condizioni operative
+            _log("Press CTRL + Select Trendline");
+
+            // --> Ad ogni aggiunta di oggetti resetto le trendline style
+            Chart.ObjectAdded += _delegateChartAdded;
 
             // --> Ogni volta che si inserisce una nuova area aggiorno tutto
             Chart.IndicatorAreaAdded += _areaAdded;
@@ -299,7 +305,7 @@ namespace cAlgo.Robots
                 _manageTrendLine(mystate, myline);
 
             }
-
+            
         }
 
         private void _manageTrendLine(OnState mystate, ChartTrendLine myline)
@@ -309,14 +315,14 @@ namespace cAlgo.Robots
             // --> Se non è inizializzata non devo fare nulla
             if (myline.Comment == null)
                 return;
-
+            
             // --> Potrebbe essere in un protoccollo non in linea con le aspettative
             string[] directive = myline.Comment.Split(Flag.Separator);
 
             // --> Aggiorno il feedback visivo
             if (!_checkFeedback(myline, directive))
                 return;
-
+            
             // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
             if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
             {
@@ -631,13 +637,17 @@ namespace cAlgo.Robots
                     NumberFormatInfo provider = new NumberFormatInfo();
                     provider.NumberDecimalSeparator = ",";
                     provider.NumberGroupSeparator = ".";
-                    provider.NumberGroupSizes = new int[] { 3 };
+                    provider.NumberGroupSizes = new int[]
+                    {
+                        3
+                    };
 
                     myLots = Convert.ToDouble(directive, provider);
 
                 }
 
-            } catch
+            }
+            catch
             {
             }
 
@@ -695,8 +705,7 @@ namespace cAlgo.Robots
             Print("{0} : {1}", NAME, mex);
 
         }
-
-
+        
         private void _areaAdded(IndicatorAreaAddedEventArgs obj)
         {
 
@@ -712,19 +721,23 @@ namespace cAlgo.Robots
             try
             {
 
+                Chart.MouseDown -= _chart_MouseDown;
+                Chart.MouseUp -= _chart_MouseUp;
                 Chart.ObjectSelectionChanged -= _objectSelected;
-                Chart.MouseMove -= _onMouseMove;
+
                 /*
                 foreach (var item in Chart.IndicatorAreas)
                 {
 
+                    item.MouseDown -= _chart_MouseDown;
+                    item.MouseUp -= _chart_MouseUp;
                     item.ObjectSelectionChanged -= _objectSelected;
-                    item.MouseMove -= _onMouseMove;
 
 
                 }*/
 
-            }             catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -735,22 +748,66 @@ namespace cAlgo.Robots
             try
             {
 
+                Chart.MouseDown += _chart_MouseDown;
+                Chart.MouseUp += _chart_MouseUp;
                 Chart.ObjectSelectionChanged += _objectSelected;
-                Chart.MouseMove += _onMouseMove;
-                /*
+
+                /*                
                 foreach (var item in Chart.IndicatorAreas)
                 {
 
+                    item.MouseDown += _chart_MouseDown;
+                    item.MouseUp += _chart_MouseUp;
                     item.ObjectSelectionChanged += _objectSelected;
-                    item.MouseMove += _onMouseMove;
 
 
                 }*/
 
-            }             catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
+
+            }
+
+        }
+        
+        private void _chart_MouseDown(ChartMouseEventArgs obj)
+        {
+
+            _closeFormTrendLine();
+            
+        }
+
+        private void _chart_MouseUp(ChartMouseEventArgs obj)
+        {
+
+            if (obj.CtrlKey)
+            {
+
+                if (TrendLineSelected == null)
+                {
+
+                    Print("Please select one trendline first");
+
+                }
+                else
+                {
+
+                    _closeFormTrendLine();
+
+                    if (TrendLineSelected != null)
+                    {
+
+                        ThreadForm = new Thread(_createFormTrendLineOptions);
+
+                        ThreadForm.SetApartmentState(ApartmentState.STA);
+                        ThreadForm.Start(TrendLineSelected);
+
+                    }
+
+                }
 
             }
 
@@ -759,22 +816,7 @@ namespace cAlgo.Robots
         private void _objectSelected(ChartObjectSelectionChangedEventArgs obj)
         {
 
-            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
-            {
-
-                _closeFormTrendLine();
-
-                if (obj.IsObjectSelected && KeyDownCTRL)
-                {
-
-                    ThreadForm = new Thread(_createFormTrendLineOptions);
-
-                    ThreadForm.SetApartmentState(ApartmentState.STA);
-                    ThreadForm.Start(obj.ChartObject);
-
-                }
-
-            }
+            TrendLineSelected = (obj.IsObjectSelected && obj.ChartObject.ObjectType == ChartObjectType.TrendLine) ? obj.ChartObject : null;
 
         }
 
@@ -783,7 +825,9 @@ namespace cAlgo.Robots
             try
             {
 
-                FormTrendLineOptions = new FrmWrapper((ChartTrendLine)data) 
+                ChartTrendLine mytrendline = (ChartTrendLine)data;
+
+                FormTrendLineOptions = new FrmWrapper(mytrendline)
                 {
 
                     Icon = Icons.logo
@@ -793,20 +837,29 @@ namespace cAlgo.Robots
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
                 // -->(object sender, FrmWrapper.TrendLineData args)
 
-                                /*
-                    ChartTrendLine tmp = args.TrendLine;
+                /*
+                ChartTrendLine tmp = args.TrendLine;
 
-                    ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
-                    newTrendLine.Comment = tmp.Comment;
+                ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
+                newTrendLine.Comment = tmp.Comment;
 
-                    Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
-                    */
+                Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
+                */
 
-FormTrendLineOptions.UpdateTrendLine += delegate { };
+                FormTrendLineOptions.UpdateTrendLine += delegate {
+                                                            
+                    // --> Chiudo la finestra
+                    FormTrendLineOptions.Close();
+
+                    // --> Aggiorno le trendlines
+                    _checkTrendLines(OnState.Tick);
+                    
+                };
 
                 FormTrendLineOptions.ShowDialog();
 
-            } catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -823,20 +876,36 @@ FormTrendLineOptions.UpdateTrendLine += delegate { };
 
                 FormTrendLineOptions.Close();
 
-            } catch
+            }
+            catch
             {
+
+            }
+            
+        }
+
+        private void _delegateChartAdded(ChartObjectAddedEventArgs obj)
+        {
+
+            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
+            {
+
+                ChartTrendLine mytrendline = (ChartTrendLine)obj.ChartObject;
+
+                if (mytrendline.Comment == null || mytrendline.Comment.Trim().Length < 1)
+                {
+
+                    mytrendline.Thickness = 1;
+                    mytrendline.LineStyle = LineStyle.Dots;
+                    mytrendline.Color = Color.Gray;
+
+                    TrendLineSelected = mytrendline;
+
+                }
 
             }
 
         }
-
-        private void _onMouseMove(ChartMouseEventArgs eventArgs)
-        {
-
-            KeyDownCTRL = eventArgs.CtrlKey;
-
-        }
-
 
         #endregion
 
