@@ -201,7 +201,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.8";
+        public const string VERSION = "2.0.9";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -305,7 +305,7 @@ namespace cAlgo.Robots
                 _manageTrendLine(mystate, myline);
 
             }
-            
+
         }
 
         private void _manageTrendLine(OnState mystate, ChartTrendLine myline)
@@ -315,14 +315,14 @@ namespace cAlgo.Robots
             // --> Se non è inizializzata non devo fare nulla
             if (myline.Comment == null)
                 return;
-            
+
             // --> Potrebbe essere in un protoccollo non in linea con le aspettative
             string[] directive = myline.Comment.Split(Flag.Separator);
 
             // --> Aggiorno il feedback visivo
             if (!_checkFeedback(myline, directive))
                 return;
-            
+
             // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
             if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
             {
@@ -341,14 +341,14 @@ namespace cAlgo.Robots
             // --> Prelevo il prezzo della trendline
             double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
 
-            // --> Prelevo lo stato attuale del prezzo
-            CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
-
             switch (mystate)
             {
 
                 // --> Solo controlli per le bar, 
                 case OnState.Bar:
+
+                    // --> Prelevo lo stato attuale del prezzo
+                    CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
 
                     if (myPricePosition == CurrentStateLine.OverBar)
                     {
@@ -405,14 +405,17 @@ namespace cAlgo.Robots
 
                         }
 
-
                     }
 
                     break;
                 default:
 
 
-                    if (myPricePosition == CurrentStateLine.Over)
+                    // --> Prelevo lo stato attuale del prezzo
+                    CurrentStateLine myPricePositionForAsk = _checkCurrentState(lineprice, Ask);
+                    CurrentStateLine myPricePositionForBid = _checkCurrentState(lineprice, Bid);
+
+                    if (myPricePositionForAsk == CurrentStateLine.Over)
                     {
 
                         if (directive[0] == Flag.Over)
@@ -422,7 +425,64 @@ namespace cAlgo.Robots
                             directive[0] = Flag.DISABLED;
 
                         }
+                        /*
+                        if (directive[1] == Flag.Over)
+                        {
 
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+                        */
+                        if (directive[2] == Flag.OpenBuyStop)
+                        {
+
+                            _open(myline, TradeType.Buy, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+                    }
+                    else if (myPricePositionForAsk == CurrentStateLine.Under)
+                    {
+                        
+                        if (directive[0] == Flag.Under)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+                        
+                        if (directive[1] == Flag.Under)
+                        {
+
+                            _close(myline);
+                            directive[1] = Flag.DISABLED;
+
+                        }
+
+                        if (directive[2] == Flag.OpenBuyLimit)
+                        {
+
+                            _open(myline, TradeType.Buy, directive[3]);
+                            directive[2] = Flag.DISABLED;
+
+                        }
+
+                    }
+
+                    if (myPricePositionForBid == CurrentStateLine.Over)
+                    {
+                        
+                        if (directive[0] == Flag.Over)
+                        {
+
+                            _alert(myline);
+                            directive[0] = Flag.DISABLED;
+
+                        }
+                        
                         if (directive[1] == Flag.Over)
                         {
 
@@ -431,14 +491,7 @@ namespace cAlgo.Robots
 
                         }
 
-                        if (directive[2] == Flag.OpenBuyStop)
-                        {
-
-                            _open(myline, TradeType.Buy, directive[3]);
-                            directive[2] = Flag.DISABLED;
-
-                        }
-                        else if (directive[2] == Flag.OpenSellLimit)
+                        if (directive[2] == Flag.OpenSellLimit)
                         {
 
                             _open(myline, TradeType.Sell, directive[3]);
@@ -447,7 +500,7 @@ namespace cAlgo.Robots
                         }
 
                     }
-                    else if (myPricePosition == CurrentStateLine.Under)
+                    else if (myPricePositionForBid == CurrentStateLine.Under)
                     {
 
                         if (directive[0] == Flag.Under)
@@ -457,7 +510,7 @@ namespace cAlgo.Robots
                             directive[0] = Flag.DISABLED;
 
                         }
-
+                        /*
                         if (directive[1] == Flag.Under)
                         {
 
@@ -465,18 +518,11 @@ namespace cAlgo.Robots
                             directive[1] = Flag.DISABLED;
 
                         }
-
+                        */
                         if (directive[2] == Flag.OpenSellStop)
                         {
 
                             _open(myline, TradeType.Sell, directive[3]);
-                            directive[2] = Flag.DISABLED;
-
-                        }
-                        else if (directive[2] == Flag.OpenBuyLimit)
-                        {
-
-                            _open(myline, TradeType.Buy, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -637,7 +683,7 @@ namespace cAlgo.Robots
                     NumberFormatInfo provider = new NumberFormatInfo();
                     provider.NumberDecimalSeparator = ",";
                     provider.NumberGroupSeparator = ".";
-                    provider.NumberGroupSizes = new int[]
+                    provider.NumberGroupSizes = new int[] 
                     {
                         3
                     };
@@ -646,8 +692,7 @@ namespace cAlgo.Robots
 
                 }
 
-            }
-            catch
+            } catch
             {
             }
 
@@ -663,32 +708,43 @@ namespace cAlgo.Robots
 
         }
 
-        private CurrentStateLine _checkCurrentState(double lineprice)
+        private CurrentStateLine _checkCurrentState(double lineprice, double whatPrice = 0)
         {
 
-            // --> Primo e secondo controllo per le bar, quindi per la precedente perchè si presume che venga chiamato OnBar
-            if (Bars.OpenPrices.Last(1) < lineprice && Bars.ClosePrices.Last(1) > lineprice)
+            // --> Controllo solo le barre
+            if (whatPrice == 0)
             {
 
-                return CurrentStateLine.OverBar;
+                // --> Primo e secondo controllo per le bar, quindi per la precedente perchè si presume che venga chiamato OnBar
+                if (Bars.OpenPrices.Last(1) < lineprice && Bars.ClosePrices.Last(1) > lineprice)
+                {
+
+                    return CurrentStateLine.OverBar;
+
+                }
+                else if (Bars.OpenPrices.Last(1) > lineprice && Bars.ClosePrices.Last(1) < lineprice)
+                {
+
+                    return CurrentStateLine.UnderBar;
+
+                }
 
             }
-            else if (Bars.OpenPrices.Last(1) > lineprice && Bars.ClosePrices.Last(1) < lineprice)
+            else
             {
 
-                return CurrentStateLine.UnderBar;
+                if (whatPrice > lineprice)
+                {
 
-            }
-            else if (Bid > lineprice)
-            {
+                    return CurrentStateLine.Over;
 
-                return CurrentStateLine.Over;
+                }
+                else if (whatPrice < lineprice)
+                {
 
-            }
-            else if (Ask < lineprice)
-            {
+                    return CurrentStateLine.Under;
 
-                return CurrentStateLine.Under;
+                }
 
             }
 
@@ -705,7 +761,7 @@ namespace cAlgo.Robots
             Print("{0} : {1}", NAME, mex);
 
         }
-        
+
         private void _areaAdded(IndicatorAreaAddedEventArgs obj)
         {
 
@@ -736,8 +792,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -763,8 +818,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -772,12 +826,12 @@ namespace cAlgo.Robots
             }
 
         }
-        
+
         private void _chart_MouseDown(ChartMouseEventArgs obj)
         {
 
             _closeFormTrendLine();
-            
+
         }
 
         private void _chart_MouseUp(ChartMouseEventArgs obj)
@@ -827,7 +881,7 @@ namespace cAlgo.Robots
 
                 ChartTrendLine mytrendline = (ChartTrendLine)data;
 
-                FormTrendLineOptions = new FrmWrapper(mytrendline)
+                FormTrendLineOptions = new FrmWrapper(mytrendline) 
                 {
 
                     Icon = Icons.logo
@@ -837,29 +891,29 @@ namespace cAlgo.Robots
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
                 // -->(object sender, FrmWrapper.TrendLineData args)
 
-                /*
-                ChartTrendLine tmp = args.TrendLine;
+                                /*
+ChartTrendLine tmp = args.TrendLine;
 
-                ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
-                newTrendLine.Comment = tmp.Comment;
+ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
+newTrendLine.Comment = tmp.Comment;
 
-                Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
-                */
+Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
+*/
 
-                FormTrendLineOptions.UpdateTrendLine += delegate {
-                                                            
+FormTrendLineOptions.UpdateTrendLine += delegate
+                {
+
                     // --> Chiudo la finestra
                     FormTrendLineOptions.Close();
 
                     // --> Aggiorno le trendlines
                     _checkTrendLines(OnState.Tick);
-                    
+
                 };
 
                 FormTrendLineOptions.ShowDialog();
 
-            }
-            catch (Exception exp)
+            } catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -876,12 +930,11 @@ namespace cAlgo.Robots
 
                 FormTrendLineOptions.Close();
 
-            }
-            catch
+            } catch
             {
 
             }
-            
+
         }
 
         private void _delegateChartAdded(ChartObjectAddedEventArgs obj)
