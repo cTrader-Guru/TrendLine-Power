@@ -183,7 +183,8 @@ namespace cAlgo.Robots
             OverBar,
             Under,
             UnderBar,
-            Undefined
+            Undefined,
+            OnGAP
 
         }
 
@@ -195,13 +196,21 @@ namespace cAlgo.Robots
 
         }
 
+        public enum OnGapBar
+        {
+
+            Disable,
+            Trigger
+
+        }
+
         #endregion
 
         #region Identity
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.0.9";
+        public const string VERSION = "2.1.0";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -220,6 +229,12 @@ namespace cAlgo.Robots
         /// </summary>
         [Parameter("Label ( Magic Name )", Group = "Identity", DefaultValue = NAME)]
         public string MyLabel { get; set; }
+
+        /// <summary>
+        /// Decide cosa fare in GAP sulla linea
+        /// </summary>
+        [Parameter("If GAP on Line? (on Bar option)", Group = "Strategy", DefaultValue = OnGapBar.Disable)]
+        public OnGapBar ifGAP { get; set; }
 
         #endregion
 
@@ -406,6 +421,47 @@ namespace cAlgo.Robots
                         }
 
                     }
+                    else if (myPricePosition == CurrentStateLine.OnGAP)
+                    {
+
+                        // --> Procedo se richiesto il trigger
+                        if (ifGAP == OnGapBar.Trigger)
+                        {
+
+                            _alert(myline);
+                            _close(myline);
+
+                            switch (directive[2])
+                            {
+
+                                case Flag.OpenBuyStopBar:
+
+                                    _open(myline, TradeType.Buy, directive[3]);
+                                    break;
+
+                                case Flag.OpenSellStopBar:
+
+                                    _open(myline, TradeType.Sell, directive[3]);
+                                    break;
+
+                            }
+                            
+                            _log("GAP then Triggered (check cBot setup)");
+
+                        }
+                        else
+                        {
+
+                            _log("GAP then Disabled (check cBot setup)");
+
+                        }
+
+                        // --> Disabilito a prescindere
+                        directive[0] = Flag.DISABLED;
+                        directive[1] = Flag.DISABLED;
+                        directive[2] = Flag.DISABLED;
+
+                    }
 
                     break;
                 default:
@@ -445,7 +501,7 @@ namespace cAlgo.Robots
                     }
                     else if (myPricePositionForAsk == CurrentStateLine.Under)
                     {
-                        
+
                         if (directive[0] == Flag.Under)
                         {
 
@@ -453,7 +509,7 @@ namespace cAlgo.Robots
                             directive[0] = Flag.DISABLED;
 
                         }
-                        
+
                         if (directive[1] == Flag.Under)
                         {
 
@@ -474,7 +530,7 @@ namespace cAlgo.Robots
 
                     if (myPricePositionForBid == CurrentStateLine.Over)
                     {
-                        
+
                         if (directive[0] == Flag.Over)
                         {
 
@@ -482,7 +538,7 @@ namespace cAlgo.Robots
                             directive[0] = Flag.DISABLED;
 
                         }
-                        
+
                         if (directive[1] == Flag.Over)
                         {
 
@@ -683,7 +739,7 @@ namespace cAlgo.Robots
                     NumberFormatInfo provider = new NumberFormatInfo();
                     provider.NumberDecimalSeparator = ",";
                     provider.NumberGroupSeparator = ".";
-                    provider.NumberGroupSizes = new int[] 
+                    provider.NumberGroupSizes = new int[]
                     {
                         3
                     };
@@ -692,7 +748,8 @@ namespace cAlgo.Robots
 
                 }
 
-            } catch
+            }
+            catch
             {
             }
 
@@ -726,6 +783,12 @@ namespace cAlgo.Robots
                 {
 
                     return CurrentStateLine.UnderBar;
+
+                }
+                else if ((Bars.ClosePrices.Last(1) < lineprice && Bars.OpenPrices.Last(0) > lineprice) || (Bars.ClosePrices.Last(1) > lineprice && Bars.OpenPrices.Last(0) < lineprice))
+                {
+
+                    return CurrentStateLine.OnGAP;
 
                 }
 
@@ -792,7 +855,8 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }             catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -818,7 +882,8 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }             catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -881,7 +946,7 @@ namespace cAlgo.Robots
 
                 ChartTrendLine mytrendline = (ChartTrendLine)data;
 
-                FormTrendLineOptions = new FrmWrapper(mytrendline) 
+                FormTrendLineOptions = new FrmWrapper(mytrendline)
                 {
 
                     Icon = Icons.logo
@@ -891,7 +956,7 @@ namespace cAlgo.Robots
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
                 // -->(object sender, FrmWrapper.TrendLineData args)
 
-                                /*
+                /*
 ChartTrendLine tmp = args.TrendLine;
 
 ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
@@ -900,8 +965,8 @@ newTrendLine.Comment = tmp.Comment;
 Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
 */
 
-FormTrendLineOptions.UpdateTrendLine += delegate
-                {
+                FormTrendLineOptions.UpdateTrendLine += delegate
+                                {
 
                     // --> Chiudo la finestra
                     FormTrendLineOptions.Close();
@@ -909,11 +974,12 @@ FormTrendLineOptions.UpdateTrendLine += delegate
                     // --> Aggiorno le trendlines
                     _checkTrendLines(OnState.Tick);
 
-                };
+                                };
 
                 FormTrendLineOptions.ShowDialog();
 
-            } catch (Exception exp)
+            }
+            catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -930,7 +996,8 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
                 FormTrendLineOptions.Close();
 
-            } catch
+            }
+            catch
             {
 
             }
