@@ -27,6 +27,8 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Linq;
 using System.Globalization;
+using System.Text.RegularExpressions;
+using System.Net;
 
 #region Extensions & Class
 
@@ -210,7 +212,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.0";
+        public const string VERSION = "2.1.1";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -235,6 +237,18 @@ namespace cAlgo.Robots
         /// </summary>
         [Parameter("If GAP on Line? (on Bar option)", Group = "Strategy", DefaultValue = OnGapBar.Disable)]
         public OnGapBar ifGAP { get; set; }
+
+        [Parameter("Enabled?", Group = "Webhook", DefaultValue = false)]
+        public bool WebhookEnabled { get; set; }
+
+        [Parameter("API", Group = "Webhook", DefaultValue = "https://api.telegram.org/bot[ YOUR TOKEN ]/sendMessage")]
+        public string Webhook { get; set; }
+
+        [Parameter("Message", Group = "Webhook", DefaultValue = "{0} : {1} breakout, Ask {2} / Bid {3}")]
+        public string Message { get; set; }
+
+        [Parameter("POST params", Group = "Webhook", DefaultValue = "chat_id=[ @CHATID ]&text={0}")]
+        public string PostParams { get; set; }
 
         #endregion
 
@@ -445,7 +459,7 @@ namespace cAlgo.Robots
                                     break;
 
                             }
-                            
+
                             _log("GAP then Triggered (check cBot setup)");
 
                         }
@@ -700,6 +714,7 @@ namespace cAlgo.Robots
 
                 // --> La popup non deve interrompere la logica delle API, apertura e chiusura
                 new Thread(new ThreadStart(delegate { MessageBox.Show(mex, "BreakOut", MessageBoxButtons.OK, MessageBoxIcon.Information); })).Start();
+                _toWebHook();
 
             }
 
@@ -739,7 +754,7 @@ namespace cAlgo.Robots
                     NumberFormatInfo provider = new NumberFormatInfo();
                     provider.NumberDecimalSeparator = ",";
                     provider.NumberGroupSeparator = ".";
-                    provider.NumberGroupSizes = new int[]
+                    provider.NumberGroupSizes = new int[] 
                     {
                         3
                     };
@@ -748,8 +763,7 @@ namespace cAlgo.Robots
 
                 }
 
-            }
-            catch
+            } catch
             {
             }
 
@@ -855,8 +869,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -882,8 +895,7 @@ namespace cAlgo.Robots
 
                 }*/
 
-            }
-            catch (Exception exp)
+            }             catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -946,7 +958,7 @@ namespace cAlgo.Robots
 
                 ChartTrendLine mytrendline = (ChartTrendLine)data;
 
-                FormTrendLineOptions = new FrmWrapper(mytrendline)
+                FormTrendLineOptions = new FrmWrapper(mytrendline) 
                 {
 
                     Icon = Icons.logo
@@ -956,7 +968,7 @@ namespace cAlgo.Robots
                 FormTrendLineOptions.GoToMyPage += delegate { System.Diagnostics.Process.Start(PAGE); };
                 // -->(object sender, FrmWrapper.TrendLineData args)
 
-                /*
+                                /*
 ChartTrendLine tmp = args.TrendLine;
 
 ChartTrendLine newTrendLine = Chart.DrawTrendLine(tmp.Name, tmp.Time1, tmp.Y1, tmp.Time2, tmp.Y2, tmp.Color);                    
@@ -965,8 +977,8 @@ newTrendLine.Comment = tmp.Comment;
 Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignment.Center, API.HorizontalAlignment.Center, Color.Red);
 */
 
-                FormTrendLineOptions.UpdateTrendLine += delegate
-                                {
+FormTrendLineOptions.UpdateTrendLine += delegate
+                {
 
                     // --> Chiudo la finestra
                     FormTrendLineOptions.Close();
@@ -974,12 +986,11 @@ Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignme
                     // --> Aggiorno le trendlines
                     _checkTrendLines(OnState.Tick);
 
-                                };
+                };
 
                 FormTrendLineOptions.ShowDialog();
 
-            }
-            catch (Exception exp)
+            } catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -996,8 +1007,7 @@ Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignme
 
                 FormTrendLineOptions.Close();
 
-            }
-            catch
+            } catch
             {
 
             }
@@ -1022,6 +1032,46 @@ Chart.DrawStaticText("sssss", "saved " + args.TrendLine.Comment, VerticalAlignme
                     TrendLineSelected = mytrendline;
 
                 }
+
+            }
+
+        }
+
+
+        public void _toWebHook()
+        {
+
+            if (!WebhookEnabled) return;
+
+            string messageformat = string.Format(Message,NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}%", Ask), string.Format("{0:N" + Symbol.Digits + "}%", Bid));
+
+            try
+            {
+                // --> Mi servono i permessi di sicurezza per il dominio, compreso i redirect
+                Uri myuri = new Uri(Webhook);
+
+                string pattern = string.Format("{0}://{1}/.*", myuri.Scheme, myuri.Host);
+
+                // --> Autorizzo tutte le pagine di questo dominio
+                Regex urlRegEx = new Regex(pattern);
+                WebPermission p = new WebPermission(NetworkAccess.Connect, urlRegEx);
+                p.Assert();
+
+                // --> Protocollo di sicurezza https://
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)192 | (SecurityProtocolType)768 | (SecurityProtocolType)3072;
+
+                using (WebClient wc = new WebClient())
+                {
+                    wc.Headers[HttpRequestHeader.ContentType] = "application/x-www-form-urlencoded";
+                    string HtmlResult = wc.UploadString(myuri, string.Format(PostParams, messageformat));
+                }
+
+            }
+            catch (Exception exc)
+            {
+
+                MessageBox.Show(string.Format("{0}\r\nstopping cBots 'TrendLine Power' ...", exc.Message), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Stop();
 
             }
 
