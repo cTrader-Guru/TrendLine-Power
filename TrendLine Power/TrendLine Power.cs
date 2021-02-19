@@ -1036,14 +1036,14 @@ FormTrendLineOptions.UpdateTrendLine += delegate
             }
 
         }
-
-
+        
         public void _toWebHook()
         {
 
-            if (!WebhookEnabled) return;
+            if (!WebhookEnabled)
+                return;
 
-            string messageformat = string.Format(Message,NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}%", Ask), string.Format("{0:N" + Symbol.Digits + "}%", Bid));
+            string messageformat = string.Format(Message, NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}", Ask), string.Format("{0:N" + Symbol.Digits + "}", Bid));
 
             try
             {
@@ -1066,8 +1066,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
                     string HtmlResult = wc.UploadString(myuri, string.Format(PostParams, messageformat));
                 }
 
-            }
-            catch (Exception exc)
+            } catch (Exception exc)
             {
 
                 MessageBox.Show(string.Format("{0}\r\nstopping cBots 'TrendLine Power' ...", exc.Message), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
