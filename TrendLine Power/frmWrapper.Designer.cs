@@ -41,7 +41,7 @@
             this.mybrowser.Name = "mybrowser";
             this.mybrowser.ScriptErrorsSuppressed = true;
             this.mybrowser.ScrollBarsEnabled = false;
-            this.mybrowser.Size = new System.Drawing.Size(384, 641);
+            this.mybrowser.Size = new System.Drawing.Size(384, 687);
             this.mybrowser.TabIndex = 0;
             this.mybrowser.WebBrowserShortcutsEnabled = false;
             // 
@@ -49,7 +49,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(384, 641);
+            this.ClientSize = new System.Drawing.Size(384, 687);
             this.Controls.Add(this.mybrowser);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;

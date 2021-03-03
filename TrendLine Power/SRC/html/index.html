@@ -65,6 +65,19 @@
             }
         }
 
+        function withOutSlashKey(evt, ele) {
+
+            var theEvent = evt || window.event;
+            var key = theEvent.keyCode || theEvent.which;
+            key = String.fromCharCode(key);
+            var value = ele.value + key;
+            var regex = /\//;
+            if (regex.test(value)) {
+                theEvent.returnValue = false;
+                if (theEvent.preventDefault) theEvent.preventDefault();
+            }
+        }
+
     </script>
 
 </head>
@@ -121,6 +134,15 @@
                             <label>Under Bar</label>
                         </div>
                     </div>
+                </div>
+
+                <div class="fields">
+
+                    <div class="sixteen wide field">
+                        <label>Message</label>
+                        <input type="text" id="message" name="message" onkeypress="return withOutSlashKey(event, this)" placeholder="{0}:Name; {1}:Cross; {2}:Ask; {3}:Bid">
+                    </div>
+
                 </div>
 
             </div>
@@ -291,6 +313,7 @@
             , close: "di"
             , open: "di"
             , size: "0,01"
+            , message : ""
 
         };
 
@@ -312,9 +335,16 @@
 
         });
 
+        $("#message").change(function () {
+
+            setup.message = $(this).val();
+            setup.message = setup.message.replaceAll("/", "");
+
+        });
+
         $("#save").click(function () {
 
-            window.external.Save(setup.alert + "/" + setup.close + "/" + setup.open + "/" + setup.size);
+            window.external.Save(setup.alert + "/" + setup.close + "/" + setup.open + "/" + setup.size + "/" + setup.message.trim());
 
         });
 
@@ -330,18 +360,16 @@
             let comment = window.external.GetTrendComment();
             let splited = (comment && comment.trim().length > 0) ? comment.trim().split("/") : [];
 
-            if (splited.length == 4) {
-
-                setup.alert = splited[0];
-                setup.close = splited[1];
-                setup.open = splited[2];
-                setup.size = splited[3];
-            
-            }
+            setup.alert = splited[0];
+            setup.close = splited[1];
+            setup.open = splited[2];
+            setup.size = splited[3];
+            setup.message = splited[4];
 
             $('input[name="alert"][value="' + setup.alert + '"]').attr("checked", "checked");
             $('input[name="close"][value="' + setup.close + '"]').attr("checked", "checked");
             $('input[name="open"][value="' + setup.open + '"]').attr("checked", "checked");
+            $('#message').val(setup.message.trim());
             $('#size').val(setup.size);
 
         });

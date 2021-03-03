@@ -212,7 +212,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.1";
+        public const string VERSION = "2.1.2";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -243,9 +243,6 @@ namespace cAlgo.Robots
 
         [Parameter("API", Group = "Webhook", DefaultValue = "https://api.telegram.org/bot[ YOUR TOKEN ]/sendMessage")]
         public string Webhook { get; set; }
-
-        [Parameter("Message", Group = "Webhook", DefaultValue = "{0} : {1} breakout, Ask {2} / Bid {3}")]
-        public string Message { get; set; }
 
         [Parameter("POST params", Group = "Webhook", DefaultValue = "chat_id=[ @CHATID ]&text={0}")]
         public string PostParams { get; set; }
@@ -385,7 +382,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.OverBar)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -413,7 +410,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.UnderBar)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -442,7 +439,7 @@ namespace cAlgo.Robots
                         if (ifGAP == OnGapBar.Trigger)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             _close(myline);
 
                             switch (directive[2])
@@ -491,7 +488,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Over)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -519,7 +516,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Under)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -548,7 +545,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Over)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -576,7 +573,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Under)
                         {
 
-                            _alert(myline);
+                            _alert(myline, directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -611,8 +608,8 @@ namespace cAlgo.Robots
         private bool _checkFeedback(ChartTrendLine myline, string[] directive)
         {
 
-            // --> Mi aspetto 4 elementi altrimenti avanti un altro
-            if (directive.Length != 4)
+            // --> Mi aspetto 5 elementi altrimenti avanti un altro
+            if (directive.Length != 5)
                 return false;
 
             // --> L'ultima ha la precedenza, ovvero l'apertura
@@ -695,14 +692,16 @@ namespace cAlgo.Robots
 
         }
 
-        private void _alert(ChartTrendLine myline = null, string custom = "")
+        private void _alert(ChartTrendLine myline = null, string custom = null)
         {
 
             if (!CanDraw)
                 return;
 
-            string mex = (custom != "") ? custom : string.Format("{0} : {1} breakout, Ask {2} / Bid {3}", NAME, SymbolName, Ask.ToString(), Bid.ToString());
+            string tmpMex = custom != null && custom.Length > 0 ? custom : "{0} : {1} breakout, Ask {2} / Bid {3}";
 
+            string mex = string.Format(tmpMex, NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}", Ask), string.Format("{0:N" + Symbol.Digits + "}", Bid));
+            
             if (RunningMode == RunningMode.VisualBacktesting)
             {
 
@@ -714,7 +713,7 @@ namespace cAlgo.Robots
 
                 // --> La popup non deve interrompere la logica delle API, apertura e chiusura
                 new Thread(new ThreadStart(delegate { MessageBox.Show(mex, "BreakOut", MessageBoxButtons.OK, MessageBoxIcon.Information); })).Start();
-                _toWebHook();
+                _toWebHook(mex);
 
             }
 
@@ -1037,13 +1036,15 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
         
-        public void _toWebHook()
+        public void _toWebHook(string custom = null)
         {
 
             if (!WebhookEnabled)
                 return;
 
-            string messageformat = string.Format(Message, NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}", Ask), string.Format("{0:N" + Symbol.Digits + "}", Bid));
+            string tmpMex = custom != null && custom.Length > 0 ? custom : "{0} : {1} breakout, Ask {2} / Bid {3}";
+
+            string messageformat = string.Format(tmpMex, NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}", Ask), string.Format("{0:N" + Symbol.Digits + "}", Bid));
 
             try
             {
