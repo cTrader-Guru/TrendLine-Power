@@ -8,17 +8,6 @@
     GitHub      : https://github.com/cTraderGURU/
     TOS         : https://ctrader.guru/termini-del-servizio/
 
-    NOTE        : 
-
-        Ho chiesto a questo indirizzo https://ctrader.com/forum/suggestions/23834
-        di aggiungere una feature per accedere ai dati degli indicatori sul grafico,
-        mi aspetto che tu voti questa richiesta per essere implementata nelle prossime
-        versioni delle API.
-
-        In _updateAllAreaEvents() ho commentato il codice che permette di osservare e gestire
-        dal Form i dati, appena la richiesta sarà soddisfatta si potrà intervenire su _checkTrendLines()
-        modificandolo per confrontare i dati degli indicatori.
-
 */
 
 using System;
