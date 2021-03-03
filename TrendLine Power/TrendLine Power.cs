@@ -198,21 +198,13 @@ namespace cAlgo.Robots
 
         }
 
-        public enum OnGapBar
-        {
-
-            Disable,
-            Trigger
-
-        }
-
         #endregion
 
         #region Identity
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.2";
+        public const string VERSION = "2.1.3";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -235,8 +227,8 @@ namespace cAlgo.Robots
         /// <summary>
         /// Decide cosa fare in GAP sulla linea
         /// </summary>
-        [Parameter("If GAP on Line? (on Bar option)", Group = "Strategy", DefaultValue = OnGapBar.Disable)]
-        public OnGapBar ifGAP { get; set; }
+        [Parameter("Max GAP between Bars (pips, over = disable) :", Group = "Strategy", DefaultValue = 3)]
+        public double MaxGAPBar { get; set; }
 
         [Parameter("Enabled?", Group = "Webhook", DefaultValue = false)]
         public bool WebhookEnabled { get; set; }
@@ -273,7 +265,7 @@ namespace cAlgo.Robots
             _log("Press CTRL + Select Trendline");
 
             // --> Ad ogni aggiunta di oggetti resetto le trendline style
-            Chart.ObjectAdded += _delegateChartAdded;
+            Chart.ObjectsAdded += _delegateChartAdded;
 
             // --> Ogni volta che si inserisce una nuova area aggiorno tutto
             Chart.IndicatorAreaAdded += _areaAdded;
@@ -435,8 +427,10 @@ namespace cAlgo.Robots
                     else if (myPricePosition == CurrentStateLine.OnGAP)
                     {
 
-                        // --> Procedo se richiesto il trigger
-                        if (ifGAP == OnGapBar.Trigger)
+                        double gapBar = Math.Round( Math.Abs(Bars.ClosePrices.Last(1) - Bars.OpenPrices.Last(0)) / Symbol.PipSize, 2);
+
+                        // --> Procedo se il GAP è nella norma
+                        if (gapBar <= MaxGAPBar)
                         {
 
                             _alert(myline, directive[4]);
@@ -457,13 +451,13 @@ namespace cAlgo.Robots
 
                             }
 
-                            _log("GAP then Triggered (check cBot setup)");
+                            _log("GAP (" + gapBar + ") then Triggered (check cBot setup)");
 
                         }
                         else
                         {
 
-                            _log("GAP then Disabled (check cBot setup)");
+                            _log("GAP (" + gapBar + ") then Disabled (check cBot setup)");
 
                         }
 
@@ -1013,22 +1007,26 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
 
-        private void _delegateChartAdded(ChartObjectAddedEventArgs obj)
+        private void _delegateChartAdded(ChartObjectsAddedEventArgs objs)
         {
 
-            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
-            {
+            foreach ( ChartObject obj in objs.ChartObjects) {
 
-                ChartTrendLine mytrendline = (ChartTrendLine)obj.ChartObject;
-
-                if (mytrendline.Comment == null || mytrendline.Comment.Trim().Length < 1)
+                if (obj.ObjectType == ChartObjectType.TrendLine)
                 {
 
-                    mytrendline.Thickness = 1;
-                    mytrendline.LineStyle = LineStyle.Dots;
-                    mytrendline.Color = Color.Gray;
+                    ChartTrendLine mytrendline = (ChartTrendLine)obj;
 
-                    TrendLineSelected = mytrendline;
+                    if (mytrendline.Comment == null || mytrendline.Comment.Trim().Length < 1)
+                    {
+
+                        mytrendline.Thickness = 1;
+                        mytrendline.LineStyle = LineStyle.Dots;
+                        mytrendline.Color = Color.Gray;
+
+                        TrendLineSelected = mytrendline;
+
+                    }
 
                 }
 
