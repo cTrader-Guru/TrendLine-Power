@@ -193,7 +193,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.3";
+        public const string VERSION = "2.1.5";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -254,7 +254,7 @@ namespace cAlgo.Robots
             _log("Press CTRL + Select Trendline");
 
             // --> Ad ogni aggiunta di oggetti resetto le trendline style
-            Chart.ObjectsAdded += _delegateChartAdded;
+            Chart.ObjectAdded += _delegateChartAdded;
 
             // --> Ogni volta che si inserisce una nuova area aggiorno tutto
             Chart.IndicatorAreaAdded += _areaAdded;
@@ -996,6 +996,30 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
 
+        private void _delegateChartAdded(ChartObjectAddedEventArgs obj)
+        {
+
+            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
+            {
+
+                ChartTrendLine mytrendline = (ChartTrendLine)obj.ChartObject;
+
+                if (mytrendline.Comment == null || mytrendline.Comment.Trim().Length < 1)
+                {
+
+                    mytrendline.Thickness = 1;
+                    mytrendline.LineStyle = LineStyle.Dots;
+                    mytrendline.Color = Color.Gray;
+
+                    TrendLineSelected = mytrendline;
+
+                }
+
+            }
+
+        }
+
+        // --> Questa verrà utilizzata con le versioni API >= 4.0
         private void _delegateChartAdded(ChartObjectsAddedEventArgs objs)
         {
 
