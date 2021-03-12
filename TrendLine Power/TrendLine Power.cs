@@ -193,7 +193,7 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.5";
+        public const string VERSION = "2.1.6";
 
         public const string PAGE = "https://ctrader.guru/product/trendline-power/";
 
@@ -218,6 +218,15 @@ namespace cAlgo.Robots
         /// </summary>
         [Parameter("Max GAP between Bars (pips, over = disable) :", Group = "Strategy", DefaultValue = 3)]
         public double MaxGAPBar { get; set; }
+
+        [Parameter("Use CTRL Key?", Group = "Setup", DefaultValue = true)]
+        public bool UseCtrl { get; set; }
+
+        [Parameter("Use Shift Key?", Group = "Setup", DefaultValue = false)]
+        public bool UseShift { get; set; }
+
+        [Parameter("Use Alt Key?", Group = "Setup", DefaultValue = false)]
+        public bool UseAlt { get; set; }
 
         [Parameter("Enabled?", Group = "Webhook", DefaultValue = false)]
         public bool WebhookEnabled { get; set; }
@@ -251,7 +260,7 @@ namespace cAlgo.Robots
             _log(string.Format("{0} {1}", VERSION, PAGE));
 
             // --> Avverto le condizioni operative
-            _log("Press CTRL + Select Trendline");
+            _log("Press CTRL Or Shift Or Alt + Select Trendline");
 
             // --> Ad ogni aggiunta di oggetti resetto le trendline style
             Chart.ObjectAdded += _delegateChartAdded;
@@ -416,7 +425,7 @@ namespace cAlgo.Robots
                     else if (myPricePosition == CurrentStateLine.OnGAP)
                     {
 
-                        double gapBar = Math.Round( Math.Abs(Bars.ClosePrices.Last(1) - Bars.OpenPrices.Last(0)) / Symbol.PipSize, 2);
+                        double gapBar = Math.Round(Math.Abs(Bars.ClosePrices.Last(1) - Bars.OpenPrices.Last(0)) / Symbol.PipSize, 2);
 
                         // --> Procedo se il GAP è nella norma
                         if (gapBar <= MaxGAPBar)
@@ -684,7 +693,7 @@ namespace cAlgo.Robots
             string tmpMex = custom != null && custom.Length > 0 ? custom : "{0} : {1} breakout, Ask {2} / Bid {3}";
 
             string mex = string.Format(tmpMex, NAME, SymbolName, string.Format("{0:N" + Symbol.Digits + "}", Ask), string.Format("{0:N" + Symbol.Digits + "}", Bid));
-            
+
             if (RunningMode == RunningMode.VisualBacktesting)
             {
 
@@ -896,7 +905,7 @@ namespace cAlgo.Robots
         private void _chart_MouseUp(ChartMouseEventArgs obj)
         {
 
-            if (obj.CtrlKey)
+            if ((obj.CtrlKey && UseCtrl) || (obj.ShiftKey && UseShift) || (obj.AltKey && UseAlt))
             {
 
                 if (TrendLineSelected == null)
@@ -1023,7 +1032,8 @@ FormTrendLineOptions.UpdateTrendLine += delegate
         private void _delegateChartAdded(ChartObjectsAddedEventArgs objs)
         {
 
-            foreach ( ChartObject obj in objs.ChartObjects) {
+            foreach (ChartObject obj in objs.ChartObjects)
+            {
 
                 if (obj.ObjectType == ChartObjectType.TrendLine)
                 {
@@ -1046,7 +1056,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
             }
 
         }
-        
+
         public void _toWebHook(string custom = null)
         {
 
