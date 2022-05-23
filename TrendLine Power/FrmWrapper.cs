@@ -21,7 +21,7 @@ namespace cAlgo
         public event EventHandler UpdateTrendLine;
         // --> public event EventHandler<TrendLineData> UpdateTrendLine;
 
-        private ChartTrendLine MyTrendLine = null;
+        private readonly ChartTrendLine MyTrendLine = null;
 
         #endregion
 
@@ -61,6 +61,8 @@ namespace cAlgo
             MyTrendLine = trendline;
 
             InitializeComponent();
+
+            this.Text = string.Format("TrendLine Power ({0})", MyTrendLine.Name);
 
         }
 

@@ -6,7 +6,7 @@
     Facebook    : https://www.facebook.com/ctrader.guru/
     YouTube     : https://www.youtube.com/channel/UCKkgbw09Fifj65W5t5lHeCQ
     GitHub      : https://github.com/cTraderGURU/
-    TOS         : https://ctrader.guru/termini-del-servizio/
+    TOS         : https://github.com/cTrader-Guru/ctrader-guru.github.io/blob/main/DISCLAIMER.md
 
 */
 
@@ -193,40 +193,28 @@ namespace cAlgo.Robots
 
         public const string NAME = "Trendline Power";
 
-        public const string VERSION = "2.1.6";
+        public const string VERSION = "2.1.7";
 
-        public const string PAGE = "https://ctrader.guru/product/trendline-power/";
+        public const string PAGE = "https://www.google.com/search?q=ctrader+guru+trendline+power";
 
         #endregion
 
         #region Params
 
-        /// <summary>
-        /// Riferimenti del prodotto
-        /// </summary>
         [Parameter(NAME + " " + VERSION, Group = "Identity", DefaultValue = PAGE)]
         public string ProductInfo { get; set; }
 
-        /// <summary>
-        /// Label che contraddistingue una operazione
-        /// </summary>
         [Parameter("Label ( Magic Name )", Group = "Identity", DefaultValue = NAME)]
         public string MyLabel { get; set; }
 
-        /// <summary>
-        /// Decide cosa fare in GAP sulla linea
-        /// </summary>
         [Parameter("Max GAP between Bars (pips, over = disable) :", Group = "Strategy", DefaultValue = 3)]
         public double MaxGAPBar { get; set; }
 
-        [Parameter("Use CTRL Key?", Group = "Setup", DefaultValue = true)]
-        public bool UseCtrl { get; set; }
+        [Parameter("Key", DefaultValue = Key.T, Group = "Hotkey")]
+        public Key Hotkey { get; set; }
 
-        [Parameter("Use Shift Key?", Group = "Setup", DefaultValue = false)]
-        public bool UseShift { get; set; }
-
-        [Parameter("Use Alt Key?", Group = "Setup", DefaultValue = false)]
-        public bool UseAlt { get; set; }
+        [Parameter("Modifier Key", DefaultValue = ModifierKeys.Shift, Group = "Hotkey")]
+        public ModifierKeys HotkeyModifierKey { get; set; }
 
         [Parameter("Enabled?", Group = "Webhook", DefaultValue = false)]
         public bool WebhookEnabled { get; set; }
@@ -253,46 +241,38 @@ namespace cAlgo.Robots
         protected override void OnStart()
         {
 
-            // --> Con questo evitiamo errori comuni in backtest
             CanDraw = RunningMode == RunningMode.RealTime || RunningMode == RunningMode.VisualBacktesting;
 
-            // --> Stampo nei log la versione corrente
-            _log(string.Format("{0} {1}", VERSION, PAGE));
+            Log(string.Format("{0} {1}", VERSION, PAGE));
 
-            // --> Avverto le condizioni operative
-            _log("Press CTRL Or Shift Or Alt + Select Trendline");
+            Log(string.Format("Please select one trendline on main chart then press {0} + {1}", HotkeyModifierKey, Hotkey));
 
-            // --> Ad ogni aggiunta di oggetti resetto le trendline style
-            Chart.ObjectAdded += _delegateChartAdded;
+            Chart.ObjectsAdded += DelegateChartAdded;
 
-            // --> Ogni volta che si inserisce una nuova area aggiorno tutto
-            Chart.IndicatorAreaAdded += _areaAdded;
+            UpdateAllAreaEvents();
 
-            // --> Aggiorno le aree da monitorare
-            _updateAllAreaEvents();
+            Chart.AddHotkey(OnHotkey, Hotkey, HotkeyModifierKey);
 
         }
 
         protected override void OnStop()
         {
 
-            _closeFormTrendLine();
+            CloseFormTrendLine();
 
         }
 
         protected override void OnTick()
         {
 
-            // --> Controllo lo stato delle trendlines e le relative azioni da intraprendere
-            _checkTrendLines(OnState.Tick);
+            CheckTrendLines(OnState.Tick);
 
         }
 
         protected override void OnBar()
         {
 
-            // --> Controllo lo stato delle trendlines e le relative azioni da intraprendere
-            _checkTrendLines(OnState.Bar);
+            CheckTrendLines(OnState.Bar);
 
         }
 
@@ -300,46 +280,40 @@ namespace cAlgo.Robots
 
         #region Private Methods
 
-        private void _checkTrendLines(OnState mystate, ChartTrendLine OneLine = null)
+        private void CheckTrendLines(OnState mystate, ChartTrendLine OneLine = null)
         {
 
             if (OneLine != null)
             {
 
-                _manageTrendLine(mystate, OneLine);
+                ManageTrendLine(mystate, OneLine);
                 return;
 
             }
 
-            // --> Prelevo le trendline dal grafico generale
             ChartTrendLine[] alltrendlines = Chart.FindAllObjects<ChartTrendLine>();
 
-            // --> Le passo al setaccio
             foreach (ChartTrendLine myline in alltrendlines)
             {
 
-                _manageTrendLine(mystate, myline);
+                ManageTrendLine(mystate, myline);
 
             }
 
         }
 
-        private void _manageTrendLine(OnState mystate, ChartTrendLine myline)
+        private void ManageTrendLine(OnState mystate, ChartTrendLine myline)
         {
 
 
-            // --> Se non è inizializzata non devo fare nulla
             if (myline.Comment == null)
                 return;
 
-            // --> Potrebbe essere in un protoccollo non in linea con le aspettative
             string[] directive = myline.Comment.Split(Flag.Separator);
 
-            // --> Aggiorno il feedback visivo
-            if (!_checkFeedback(myline, directive))
+            if (!CheckFeedback(myline, directive))
                 return;
 
-            // --> Se la trendline non è infinita allora devo controllare il tempo, inizio con le scadute
             if (!myline.ExtendToInfinity && myline.Time1 < Bars.LastBar.OpenTime && myline.Time2 < Bars.LastBar.OpenTime)
             {
 
@@ -349,22 +323,19 @@ namespace cAlgo.Robots
             }
             else if (myline.Time1 > Bars.LastBar.OpenTime && myline.Time2 > Bars.LastBar.OpenTime)
             {
-                // --> Sono nel futuro, non opero
+
                 return;
 
             }
 
-            // --> Prelevo il prezzo della trendline
             double lineprice = Math.Round(myline.CalculateY(Chart.BarsTotal - 1), Symbol.Digits);
 
             switch (mystate)
             {
 
-                // --> Solo controlli per le bar, 
                 case OnState.Bar:
 
-                    // --> Prelevo lo stato attuale del prezzo
-                    CurrentStateLine myPricePosition = _checkCurrentState(lineprice);
+                    CurrentStateLine myPricePosition = CheckCurrentState(lineprice);
 
                     if (myPricePosition == CurrentStateLine.OverBar)
                     {
@@ -372,7 +343,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.OverBar)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -380,7 +351,7 @@ namespace cAlgo.Robots
                         if (directive[1] == Flag.OverBar)
                         {
 
-                            _close(myline);
+                            Close();
                             directive[1] = Flag.DISABLED;
 
                         }
@@ -388,7 +359,7 @@ namespace cAlgo.Robots
                         if (directive[2] == Flag.OpenBuyStopBar)
                         {
 
-                            _open(myline, TradeType.Buy, directive[3]);
+                            Open(TradeType.Buy, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -400,7 +371,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.UnderBar)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -408,7 +379,7 @@ namespace cAlgo.Robots
                         if (directive[1] == Flag.UnderBar)
                         {
 
-                            _close(myline);
+                            Close();
                             directive[1] = Flag.DISABLED;
 
                         }
@@ -416,7 +387,7 @@ namespace cAlgo.Robots
                         if (directive[2] == Flag.OpenSellStopBar)
                         {
 
-                            _open(myline, TradeType.Sell, directive[3]);
+                            Open(TradeType.Sell, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -427,39 +398,37 @@ namespace cAlgo.Robots
 
                         double gapBar = Math.Round(Math.Abs(Bars.ClosePrices.Last(1) - Bars.OpenPrices.Last(0)) / Symbol.PipSize, 2);
 
-                        // --> Procedo se il GAP è nella norma
                         if (gapBar <= MaxGAPBar)
                         {
 
-                            _alert(myline, directive[4]);
-                            _close(myline);
+                            Alert(directive[4]);
+                            Close();
 
                             switch (directive[2])
                             {
 
                                 case Flag.OpenBuyStopBar:
 
-                                    _open(myline, TradeType.Buy, directive[3]);
+                                    Open(TradeType.Buy, directive[3]);
                                     break;
 
                                 case Flag.OpenSellStopBar:
 
-                                    _open(myline, TradeType.Sell, directive[3]);
+                                    Open(TradeType.Sell, directive[3]);
                                     break;
 
                             }
 
-                            _log("GAP (" + gapBar + ") then Triggered (check cBot setup)");
+                            Log("GAP (" + gapBar + ") then Triggered (check cBot setup)");
 
                         }
                         else
                         {
 
-                            _log("GAP (" + gapBar + ") then Disabled (check cBot setup)");
+                            Log("GAP (" + gapBar + ") then Disabled (check cBot setup)");
 
                         }
 
-                        // --> Disabilito a prescindere
                         directive[0] = Flag.DISABLED;
                         directive[1] = Flag.DISABLED;
                         directive[2] = Flag.DISABLED;
@@ -470,9 +439,8 @@ namespace cAlgo.Robots
                 default:
 
 
-                    // --> Prelevo lo stato attuale del prezzo
-                    CurrentStateLine myPricePositionForAsk = _checkCurrentState(lineprice, Ask);
-                    CurrentStateLine myPricePositionForBid = _checkCurrentState(lineprice, Bid);
+                    CurrentStateLine myPricePositionForAsk = CheckCurrentState(lineprice, Ask);
+                    CurrentStateLine myPricePositionForBid = CheckCurrentState(lineprice, Bid);
 
                     if (myPricePositionForAsk == CurrentStateLine.Over)
                     {
@@ -480,23 +448,15 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Over)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
-                        /*
-                        if (directive[1] == Flag.Over)
-                        {
 
-                            _close(myline);
-                            directive[1] = Flag.DISABLED;
-
-                        }
-                        */
                         if (directive[2] == Flag.OpenBuyStop)
                         {
 
-                            _open(myline, TradeType.Buy, directive[3]);
+                            Open(TradeType.Buy, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -508,7 +468,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Under)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -516,7 +476,7 @@ namespace cAlgo.Robots
                         if (directive[1] == Flag.Under)
                         {
 
-                            _close(myline);
+                            Close();
                             directive[1] = Flag.DISABLED;
 
                         }
@@ -524,7 +484,7 @@ namespace cAlgo.Robots
                         if (directive[2] == Flag.OpenBuyLimit)
                         {
 
-                            _open(myline, TradeType.Buy, directive[3]);
+                            Open(TradeType.Buy, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -537,7 +497,7 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Over)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
@@ -545,7 +505,7 @@ namespace cAlgo.Robots
                         if (directive[1] == Flag.Over)
                         {
 
-                            _close(myline);
+                            Close();
                             directive[1] = Flag.DISABLED;
 
                         }
@@ -553,7 +513,7 @@ namespace cAlgo.Robots
                         if (directive[2] == Flag.OpenSellLimit)
                         {
 
-                            _open(myline, TradeType.Sell, directive[3]);
+                            Open(TradeType.Sell, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -565,23 +525,15 @@ namespace cAlgo.Robots
                         if (directive[0] == Flag.Under)
                         {
 
-                            _alert(myline, directive[4]);
+                            Alert(directive[4]);
                             directive[0] = Flag.DISABLED;
 
                         }
-                        /*
-                        if (directive[1] == Flag.Under)
-                        {
 
-                            _close(myline);
-                            directive[1] = Flag.DISABLED;
-
-                        }
-                        */
                         if (directive[2] == Flag.OpenSellStop)
                         {
 
-                            _open(myline, TradeType.Sell, directive[3]);
+                            Open(TradeType.Sell, directive[3]);
                             directive[2] = Flag.DISABLED;
 
                         }
@@ -592,19 +544,16 @@ namespace cAlgo.Robots
 
             }
 
-            // --> Ricostruisco le direttive
             myline.Comment = string.Join("/", directive);
 
         }
 
-        private bool _checkFeedback(ChartTrendLine myline, string[] directive)
+        private bool CheckFeedback(ChartTrendLine myline, string[] directive)
         {
 
-            // --> Mi aspetto 5 elementi altrimenti avanti un altro
             if (directive.Length != 5)
                 return false;
 
-            // --> L'ultima ha la precedenza, ovvero l'apertura
             if (directive[2] == Flag.OpenBuyStop)
             {
 
@@ -641,7 +590,6 @@ namespace cAlgo.Robots
                 myline.ToSell().Limit();
 
             }
-            // --> Le chiusure
             else if (directive[1] == Flag.Over || directive[1] == Flag.Under)
             {
 
@@ -654,7 +602,6 @@ namespace cAlgo.Robots
                 myline.ToCloseBar();
 
             }
-            // --> Gli alerts
             else if (directive[0] == Flag.Over || directive[0] == Flag.Under)
             {
 
@@ -684,7 +631,7 @@ namespace cAlgo.Robots
 
         }
 
-        private void _alert(ChartTrendLine myline = null, string custom = null)
+        private void Alert(string custom = null)
         {
 
             if (!CanDraw)
@@ -697,26 +644,22 @@ namespace cAlgo.Robots
             if (RunningMode == RunningMode.VisualBacktesting)
             {
 
-                _log(mex);
+                Log(mex);
 
             }
             else
             {
 
-                // --> La popup non deve interrompere la logica delle API, apertura e chiusura
                 new Thread(new ThreadStart(delegate { MessageBox.Show(mex, "BreakOut", MessageBoxButtons.OK, MessageBoxIcon.Information); })).Start();
-                _toWebHook(mex);
+                ToWebHook(mex);
 
             }
 
-            // --> if (myline != null) myline.ToDelivered();
-
         }
 
-        private void _close(ChartTrendLine myline)
+        private void Close()
         {
 
-            // --> Chiudo tutti i trade di questo simbolo
             foreach (var position in Positions)
             {
 
@@ -727,11 +670,9 @@ namespace cAlgo.Robots
 
             }
 
-            // --> myline.ToDelivered();
-
         }
 
-        private void _open(ChartTrendLine myline, TradeType mytype, string directive = "0,01", double slippage = 20)
+        private void Open(TradeType mytype, string directive = "0,01", double slippage = 20)
         {
 
             double myLots = 0.01;
@@ -739,15 +680,17 @@ namespace cAlgo.Robots
             try
             {
 
-                // --> double con la virgola e non con il punto
                 if (directive.IndexOf('.') == -1)
                 {
-                    NumberFormatInfo provider = new NumberFormatInfo();
-                    provider.NumberDecimalSeparator = ",";
-                    provider.NumberGroupSeparator = ".";
-                    provider.NumberGroupSizes = new int[] 
+
+                    NumberFormatInfo provider = new NumberFormatInfo 
                     {
-                        3
+                        NumberDecimalSeparator = ",",
+                        NumberGroupSeparator = ".",
+                        NumberGroupSizes = new int[] 
+                        {
+                            3
+                        }
                     };
 
                     myLots = Convert.ToDouble(directive, provider);
@@ -763,21 +706,17 @@ namespace cAlgo.Robots
             TradeResult result = ExecuteMarketRangeOrder(mytype, Symbol.Name, volumeInUnits, slippage, mytype == TradeType.Buy ? Ask : Bid, MyLabel, 0, 0);
 
             if (!result.IsSuccessful)
-                _log("can't open new trade " + mytype.ToString("G") + " (" + result.Error + ")");
+                Log("can't open new trade " + mytype.ToString("G") + " (" + result.Error + ")");
 
-            // --> Anche se non dovesse aprire la disabilito, potrebbe creare più problemi che altro
-            // --> myline.ToDelivered();
 
         }
 
-        private CurrentStateLine _checkCurrentState(double lineprice, double whatPrice = 0)
+        private CurrentStateLine CheckCurrentState(double lineprice, double whatPrice = 0)
         {
 
-            // --> Controllo solo le barre
             if (whatPrice == 0)
             {
 
-                // --> Primo e secondo controllo per le bar, quindi per la precedente perchè si presume che venga chiamato OnBar
                 if (Bars.OpenPrices.Last(1) < lineprice && Bars.ClosePrices.Last(1) > lineprice)
                 {
 
@@ -820,7 +759,7 @@ namespace cAlgo.Robots
 
         }
 
-        private void _log(string mex)
+        private void Log(string mex, bool box = false)
         {
 
             if (!CanDraw)
@@ -828,65 +767,33 @@ namespace cAlgo.Robots
 
             Print("{0} : {1}", NAME, mex);
 
-        }
-
-        private void _areaAdded(IndicatorAreaAddedEventArgs obj)
-        {
-
-            // --> Aggiorno tutte le aree
-            _updateAllAreaEvents();
+            if (box)
+                MessageBox.Show(mex, NAME, MessageBoxButtons.OK, MessageBoxIcon.Information);
 
         }
 
-        private void _updateAllAreaEvents()
+
+        private void UpdateAllAreaEvents()
         {
 
-            // --> Prima rimuovo eventuali handle registrati
             try
             {
 
-                Chart.MouseDown -= _chart_MouseDown;
-                Chart.MouseUp -= _chart_MouseUp;
-                Chart.ObjectSelectionChanged -= _objectSelected;
+                Chart.ObjectsSelectionChanged -= ObjectSelected;
 
-                /*
-                foreach (var item in Chart.IndicatorAreas)
-                {
-
-                    item.MouseDown -= _chart_MouseDown;
-                    item.MouseUp -= _chart_MouseUp;
-                    item.ObjectSelectionChanged -= _objectSelected;
-
-
-                }*/
-
-            }             catch (Exception exp)
+            } catch (Exception exp)
             {
 
                 Print(exp.Message);
 
             }
 
-            // --> Poi aggiungo gli handle che mi interessano
             try
             {
 
-                Chart.MouseDown += _chart_MouseDown;
-                Chart.MouseUp += _chart_MouseUp;
-                Chart.ObjectSelectionChanged += _objectSelected;
+                Chart.ObjectsSelectionChanged += ObjectSelected;
 
-                /*                
-                foreach (var item in Chart.IndicatorAreas)
-                {
-
-                    item.MouseDown += _chart_MouseDown;
-                    item.MouseUp += _chart_MouseUp;
-                    item.ObjectSelectionChanged += _objectSelected;
-
-
-                }*/
-
-            }             catch (Exception exp)
+            } catch (Exception exp)
             {
 
                 Print(exp.Message);
@@ -895,54 +802,46 @@ namespace cAlgo.Robots
 
         }
 
-        private void _chart_MouseDown(ChartMouseEventArgs obj)
+        private void OnHotkey()
         {
 
-            _closeFormTrendLine();
-
-        }
-
-        private void _chart_MouseUp(ChartMouseEventArgs obj)
-        {
-
-            if ((obj.CtrlKey && UseCtrl) || (obj.ShiftKey && UseShift) || (obj.AltKey && UseAlt))
+            if (TrendLineSelected == null)
             {
 
-                if (TrendLineSelected == null)
-                {
+                Log("Please select one trendline on main chart", true);
 
-                    Print("Please select one trendline first");
+            }
+            else
+            {
 
-                }
-                else
-                {
+                CloseFormTrendLine();
 
-                    _closeFormTrendLine();
+                ThreadForm = new Thread(CreateFormTrendLineOptions);
 
-                    if (TrendLineSelected != null)
-                    {
-
-                        ThreadForm = new Thread(_createFormTrendLineOptions);
-
-                        ThreadForm.SetApartmentState(ApartmentState.STA);
-                        ThreadForm.Start(TrendLineSelected);
-
-                    }
-
-                }
+                ThreadForm.SetApartmentState(ApartmentState.STA);
+                ThreadForm.Start(TrendLineSelected);
 
             }
 
+
         }
 
-        private void _objectSelected(ChartObjectSelectionChangedEventArgs obj)
+        private void ObjectSelected(ChartObjectsSelectionChangedEventArgs obj)
         {
 
-            TrendLineSelected = (obj.IsObjectSelected && obj.ChartObject.ObjectType == ChartObjectType.TrendLine) ? obj.ChartObject : null;
+            if (Chart.SelectedObjects.Count != 1)
+            {
+
+                TrendLineSelected = null;
+                return;
+
+            }
+
+            TrendLineSelected = (Chart.SelectedObjects[0].ObjectType == ChartObjectType.TrendLine) ? Chart.SelectedObjects[0] : null;
 
         }
 
-        private void _createFormTrendLineOptions(object data)
+        private void CreateFormTrendLineOptions(object data)
         {
             try
             {
@@ -975,7 +874,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
                     FormTrendLineOptions.Close();
 
                     // --> Aggiorno le trendlines
-                    _checkTrendLines(OnState.Tick);
+                    CheckTrendLines(OnState.Tick);
 
                 };
 
@@ -990,7 +889,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
 
-        private void _closeFormTrendLine()
+        private void CloseFormTrendLine()
         {
 
             try
@@ -1005,31 +904,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
 
-        private void _delegateChartAdded(ChartObjectAddedEventArgs obj)
-        {
-
-            if (obj.ChartObject.ObjectType == ChartObjectType.TrendLine)
-            {
-
-                ChartTrendLine mytrendline = (ChartTrendLine)obj.ChartObject;
-
-                if (mytrendline.Comment == null || mytrendline.Comment.Trim().Length < 1)
-                {
-
-                    mytrendline.Thickness = 1;
-                    mytrendline.LineStyle = LineStyle.Dots;
-                    mytrendline.Color = Color.Gray;
-
-                    TrendLineSelected = mytrendline;
-
-                }
-
-            }
-
-        }
-
-        // --> Questa verrà utilizzata con le versioni API >= 4.0
-        private void _delegateChartAdded(ChartObjectsAddedEventArgs objs)
+        private void DelegateChartAdded(ChartObjectsAddedEventArgs objs)
         {
 
             foreach (ChartObject obj in objs.ChartObjects)
@@ -1047,8 +922,6 @@ FormTrendLineOptions.UpdateTrendLine += delegate
                         mytrendline.LineStyle = LineStyle.Dots;
                         mytrendline.Color = Color.Gray;
 
-                        TrendLineSelected = mytrendline;
-
                     }
 
                 }
@@ -1057,7 +930,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
         }
 
-        public void _toWebHook(string custom = null)
+        public void ToWebHook(string custom = null)
         {
 
             if (!WebhookEnabled)
@@ -1069,17 +942,15 @@ FormTrendLineOptions.UpdateTrendLine += delegate
 
             try
             {
-                // --> Mi servono i permessi di sicurezza per il dominio, compreso i redirect
+
                 Uri myuri = new Uri(Webhook);
 
                 string pattern = string.Format("{0}://{1}/.*", myuri.Scheme, myuri.Host);
 
-                // --> Autorizzo tutte le pagine di questo dominio
                 Regex urlRegEx = new Regex(pattern);
                 WebPermission p = new WebPermission(NetworkAccess.Connect, urlRegEx);
                 p.Assert();
 
-                // --> Protocollo di sicurezza https://
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)192 | (SecurityProtocolType)768 | (SecurityProtocolType)3072;
 
                 using (WebClient wc = new WebClient())
@@ -1091,7 +962,7 @@ FormTrendLineOptions.UpdateTrendLine += delegate
             } catch (Exception exc)
             {
 
-                MessageBox.Show(string.Format("{0}\r\nstopping cBots 'TrendLine Power' ...", exc.Message), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log(string.Format("{0}\r\nstopping cBots 'TrendLine Power' ...", exc.Message), true);
                 Stop();
 
             }
