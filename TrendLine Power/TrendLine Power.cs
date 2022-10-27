@@ -813,7 +813,7 @@ namespace cAlgo.Robots
             }
             else
             {
-
+                           
                 CloseFormTrendLine();
 
                 ThreadForm = new Thread(CreateFormTrendLineOptions);
